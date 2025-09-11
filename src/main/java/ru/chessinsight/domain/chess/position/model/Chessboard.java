@@ -59,29 +59,29 @@ public final class Chessboard {
 
     public static Chessboard fromFENPlacement(String FEN) {
         Map<BoardCoordinates, Piece> pieces = new HashMap<>();
-        int file = 0, rank = 7;
-        for (char c : FEN.toCharArray()) {
-            if (c == '/') {
-                file = 0;
-                rank--;
-                continue;
+        String[] rows = FEN.split("/");
+        for (int rFen = 0; rFen < 8; rFen++) {
+            int rank = 7 - rFen;          // 8-я -> 7, 1-я -> 0
+            int file = 0;
+            for (char c : rows[rFen].toCharArray()) {
+                if (Character.isDigit(c)) {
+                    file += (c - '0');
+                } else {
+                    Color color = Character.isUpperCase(c) ? Color.WHITE : Color.BLACK;
+                    Piece piece = switch (Character.toLowerCase(c)) {
+                        case 'k' -> new King(color);
+                        case 'q' -> new Queen(color);
+                        case 'r' -> new Rook(color);
+                        case 'b' -> new Bishop(color);
+                        case 'n' -> new Knight(color);
+                        case 'p' -> new Pawn(color);
+                        default -> throw new BadFENCharException(c);
+                    };
+                    BoardCoordinates currentCoords = new BoardCoordinates(rank, file);
+                    pieces.put(currentCoords, piece);
+                    file++;
+                }
             }
-            if (Character.isDigit(c)) {
-                file += (c - '0');
-                continue;
-            }
-            Color color = Character.isUpperCase(c) ? Color.WHITE : Color.BLACK;
-            Piece piece = switch (Character.toLowerCase(c)) {
-                case 'k' -> new King(color);
-                case 'q' -> new Queen(color);
-                case 'r' -> new Rook(color);
-                case 'b' -> new Bishop(color);
-                case 'n' -> new Knight(color);
-                case 'p' -> new Pawn(color);
-                default -> throw new BadFENCharException(c);
-            };
-            BoardCoordinates currentCoords = new BoardCoordinates(rank, file);
-            pieces.put(currentCoords, piece);
         }
 
         return new Chessboard(pieces);

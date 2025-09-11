@@ -15,6 +15,7 @@ public class PgnParser {
         ast.tags = tags;
         ast.mainline = parseLine(cur);
         if (cur.peek() instanceof PgnTokenizer.ResultTok r){ ast.result = r.value; cur.next(); }
+        if (ast.result == null) ast.result = "*";
         return ast;
     }
 
@@ -31,7 +32,7 @@ public class PgnParser {
                 List<PgnAst.Node> varLine = parseLine(cur);
                 if (cur.peek() instanceof PgnTokenizer.RParen) cur.next();
                 if (!line.isEmpty()){
-                    var last = line.get(line.size()-1);
+                    var last = line.getLast();
                     last.variations.add(varLine);
                 }
                 continue;
@@ -40,12 +41,11 @@ public class PgnParser {
                 PgnAst.Node node = new PgnAst.Node(s.text);
                 if (!pendingComments.isEmpty()){ node.commentBefore = String.join(" ", pendingComments); pendingComments.clear(); }
                 cur.next();
-                // trailing
                 while(true){
                     var u = cur.peek();
                     if (u==null || u instanceof PgnTokenizer.San || u instanceof PgnTokenizer.ResultTok || u instanceof PgnTokenizer.RParen || u instanceof PgnTokenizer.LParen) break;
                     if (u instanceof PgnTokenizer.Dot || u instanceof PgnTokenizer.Newline){ cur.next(); continue; }
-                    if (u instanceof PgnTokenizer.Comment c){ node.commentAfter = node.commentAfter==null? c.text : (node.commentAfter + " " + c.text); cur.next(); continue; }
+                    if (u instanceof PgnTokenizer.Comment c){ node.commentAfter = node.commentAfter==null ? c.text : (node.commentAfter + " " + c.text); cur.next(); continue; }
                     if (u instanceof PgnTokenizer.Nag n){ node.nags.add(n.value); cur.next(); continue; }
                     cur.next();
                 }

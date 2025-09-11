@@ -18,11 +18,11 @@ public class Pawn extends Piece {
         List<Move> moves = new ArrayList<>();
         if (color == Color.WHITE) {
             startingRank = 1;
-            promotionRank = 6;
+            promotionRank = 7;
             dir = 1;
         } else {
             startingRank = 6;
-            promotionRank = 1;
+            promotionRank = 0;
             dir = -1;
         }
 

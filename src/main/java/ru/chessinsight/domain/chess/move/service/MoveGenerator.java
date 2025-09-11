@@ -15,10 +15,10 @@ import java.util.stream.Stream;
 
 public class MoveGenerator {
     private static final class TraceDirection {
-        public static short UP = 2;
-        public static short DOWN = 0;
-        public static short LEFT = 6;
-        public static short RIGHT = 4;
+        public static short UP = 1;
+        public static short DOWN = 2;
+        public static short LEFT = 4;
+        public static short RIGHT = 8;
     }
 
     public static List<Move> orthogonal(Chessboard b, BoardCoordinates from, Color color) {
@@ -40,8 +40,8 @@ public class MoveGenerator {
     }
 
     private static List<Move> inDirection(Chessboard b, BoardCoordinates from, Color color, int direction) {
-        int verticalOffset = (direction % 4) - 1;
-        int horizontalOffset = (direction >> 2 % 4) - 1;
+        int verticalOffset = (direction & TraceDirection.UP) - (direction & TraceDirection.DOWN);
+        int horizontalOffset = (direction & TraceDirection.LEFT) - (direction & TraceDirection.RIGHT);
         var moveList = new ArrayList<Move>();
         BoardCoordinates next =
                 new BoardCoordinates(from.rank() + verticalOffset, from.file() + horizontalOffset);
@@ -67,6 +67,7 @@ public class MoveGenerator {
     }
 
     public static Move generateMoveIfPossible(Chessboard b, BoardCoordinates src, BoardCoordinates target, Color color) {
+        if (!b.inside(target)) return null;
         Piece occupant = b.at(target);
         if (occupant == null) {
             return Move.move(src, target, false);

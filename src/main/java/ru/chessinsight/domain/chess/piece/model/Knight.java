@@ -13,10 +13,10 @@ import java.util.stream.Collectors;
 
 public class Knight extends Piece {
     private static final int[][] offsets = {
-            {-2, 1}, {2, 1},
-            {-2, -1}, {2, -1},
-            {1, -2}, {-1, -2},
-            {1, 2}, {-1, -2}
+            {2, -1}, {2, 1},
+            {1, -2}, {1, 2},
+            {-1, -2}, {-1, 2},
+            {-2, -1}, {-2, 1}
     };
 
     public Knight(Color c) {

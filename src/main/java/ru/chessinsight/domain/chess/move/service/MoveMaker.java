@@ -40,8 +40,9 @@ public class MoveMaker {
         CastlingRights newRights = updateRightsAfterMove(cr, us, pieceToPlace, m.from(), m.to());
 
         BoardCoordinates enPassantSquare = (m.kind() == MoveKind.DOUBLE_PAWN_PUSH)
-                ? new BoardCoordinates(m.from().rank() + m.to().rank() / 2, m.to().file())
+                ? new BoardCoordinates((m.from().rank() + m.to().rank()) / 2, m.to().file())
                 : null;
+        newBoard.setEnPassantSquare(enPassantSquare);
 
         int moveNum = p.turnNumber() + (us == Color.BLACK ? 1 : 0);
 

@@ -19,10 +19,10 @@ public final class SanNotationService {
 
     public Move sanToMove(String san, Position pos){
         if (san.equals("O-O") || san.equals("0-0")) {
-            return Move.castleKingSide();
+            return Move.castleKingSide(pos.sideToMove());
         }
         if (san.equals("O-O-O") || san.equals("0-0-0")) {
-            return Move.castleQueenSide();
+            return Move.castleQueenSide(pos.sideToMove());
         }
         String s = san;
         boolean checkOrMate = s.endsWith("+") || s.endsWith("#");
@@ -85,7 +85,7 @@ public final class SanNotationService {
         if (!isPawn) sb.append(piece);
         MoveValidator validator = new MoveValidator();
         List<Move> rivals = validator.sideLegalMoves(before, before.sideToMove()).stream()
-                .filter(m -> m != move && m.to() != null && move.to() != null
+                .filter(m -> !m.equals(move) && m.to() != null && move.to() != null
                         && m.promotionTo() == move.promotionTo()
                         && m.to().file() == move.to().file() && m.to().rank() == move.to().rank()
                         && letterOf(pieceOf(before, m.from())).equals(piece))

@@ -17,7 +17,7 @@ public enum PromotionPieceType {
     public abstract Piece create(Color c);
 
     public static PromotionPieceType fromLetter(char c) {
-        return switch (c) {
+        return switch (Character.toUpperCase(c)) {
             case 'Q' -> PromotionPieceType.QUEEN;
             case 'R' -> PromotionPieceType.ROOK;
             case 'B' -> PromotionPieceType.BISHOP;

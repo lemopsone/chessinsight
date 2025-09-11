@@ -57,7 +57,7 @@ public class MoveValidator {
         squaresToCheck.add(new BoardCoordinates(rank, finalKingPos));
         squaresToCheck.add(new BoardCoordinates(rank, (KING_FILE + finalKingPos) / 2));
 
-        Set<BoardCoordinates> attackedSquares = getSideAttackedSquares(p, c);
+        Set<BoardCoordinates> attackedSquares = getSideAttackedSquares(p, c.opponent());
         for (var square : squaresToCheck) {
             if (attackedSquares.contains(square)) return true;
         }
@@ -100,11 +100,11 @@ public class MoveValidator {
         if (piece instanceof King king) {
             var rights = p.castlingRights();
             if (king.getColor() == Color.WHITE) {
-                if (rights.whiteKingSide()) allMoves.add(Move.castleKingSide());
-                if (rights.whiteQueenSide()) allMoves.add(Move.castleQueenSide());
+                if (rights.whiteKingSide()) allMoves.add(Move.castleKingSide(Color.WHITE));
+                if (rights.whiteQueenSide()) allMoves.add(Move.castleQueenSide(Color.WHITE));
             } else {
-                if (rights.blackKingSide()) allMoves.add(Move.castleKingSide());
-                if (rights.blackQueenSide()) allMoves.add(Move.castleQueenSide());
+                if (rights.blackKingSide()) allMoves.add(Move.castleKingSide(Color.BLACK));
+                if (rights.blackQueenSide()) allMoves.add(Move.castleQueenSide(Color.BLACK));
             }
         }
         allMoves.removeIf(move -> !isLegal(p, move));
