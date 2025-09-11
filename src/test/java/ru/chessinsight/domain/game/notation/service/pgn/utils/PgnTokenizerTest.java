@@ -5,7 +5,6 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class PgnTokenizerTest {
-
     @Test
     void tokenizes_tags_moves_comments_nags_result() {
         String pgn = """

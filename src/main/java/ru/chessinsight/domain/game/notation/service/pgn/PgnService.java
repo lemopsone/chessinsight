@@ -5,12 +5,14 @@ import ru.chessinsight.domain.chess.move.notation.service.UciNotationService;
 import ru.chessinsight.domain.chess.position.model.Position;
 import ru.chessinsight.domain.chess.move.model.Move;
 import ru.chessinsight.domain.chess.move.service.MoveMaker;
+import ru.chessinsight.domain.exception.InvalidSANException;
 import ru.chessinsight.domain.game.model.Game;
 import ru.chessinsight.domain.game.model.GameMove;
 import ru.chessinsight.domain.game.notation.service.pgn.utils.PgnAst;
 import ru.chessinsight.domain.game.notation.service.pgn.utils.PgnParser;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 public class PgnService {
@@ -26,10 +28,17 @@ public class PgnService {
     }
 
     public Game createEmptyGameFromPGN(String pgnText) {
+        PgnAst ast = parse(pgnText);
         Game game = new Game();
         game.setId(UUID.randomUUID());
         game.setPgn(pgnText);
-        game.setDate(LocalDate.now());
+        for (var tagEntry: ast.tags.entrySet()) System.out.println(tagEntry.getKey() + " " + tagEntry.getValue());
+        game.setEvent(ast.tags.get("Event"));
+        game.setSite(ast.tags.get("Site"));
+        String dateString = ast.tags.get("Date");
+        game.setDate(dateString == null
+                ? null
+                : LocalDate.parse(dateString, DateTimeFormatter.ofPattern("yyyy.MM.dd")));
         return game;
     }
 
@@ -44,7 +53,7 @@ public class PgnService {
 
         for (PgnAst.Node n : ast.mainline){
             Move mv = sanNotationService.sanToMove(n.san, pos);
-            if (mv==null) throw new IllegalArgumentException("Cannot resolve SAN: " + n.san);
+            if (mv==null) throw new InvalidSANException("cannot resolve SAN: " + n.san);
             String uci = uciNotationService.moveToUci(mv);
             String fenBefore = pos.toFEN();
             pos = MoveMaker.apply(pos, mv);
