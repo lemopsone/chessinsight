@@ -40,12 +40,12 @@ class PgnTokenizer {
                 int k=j; int dots=0; while(k<n && s.charAt(k)=='.'){ dots++; k++; }
                 if (dots>0){ out.add(new Dot(dots)); i=k; continue; }
                 String ahead = nextToken(s,i);
-                if (ahead.matches("^(1-0|0-1|1/2-1/2|*)$")) { out.add(new ResultTok(ahead)); i+=ahead.length(); continue; }
+                if (ahead.matches("^(1-0|0-1|1/2-1/2|\\*)$")) { out.add(new ResultTok(ahead)); i+=ahead.length(); continue; }
                 i=j; continue;
             }
             if (c=='1' || c=='0' || c=='*'){
                 String ahead = nextToken(s,i);
-                if (ahead.matches("^(1-0|0-1|1/2-1/2|*)$")) { out.add(new ResultTok(ahead)); i+=ahead.length(); continue; }
+                if (ahead.matches("^(1-0|0-1|1/2-1/2|\\*)$")) { out.add(new ResultTok(ahead)); i+=ahead.length(); continue; }
             }
             int j=i; while(j<n && !isSpace(s.charAt(j)) && s.charAt(j)!='(' && s.charAt(j)!=')') j++;
             String tok = s.substring(i,j);
