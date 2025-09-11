@@ -1,8 +1,5 @@
 package ru.chessinsight.domain.game.model;
 
-import org.jmolecules.ddd.annotation.ValueObject;
-
-@ValueObject
 public enum GameResult {
     WHITE_WIN {
         public String toString() {
