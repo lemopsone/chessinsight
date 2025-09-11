@@ -10,6 +10,7 @@ import ru.chessinsight.domain.chess.piece.model.Piece;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class MoveGenerator {
@@ -26,7 +27,7 @@ public class MoveGenerator {
                 inDirection(b, from, color, TraceDirection.DOWN),
                 inDirection(b, from, color, TraceDirection.LEFT),
                 inDirection(b, from, color, TraceDirection.RIGHT)
-        ).flatMap(Collection::stream).toList();
+        ).flatMap(Collection::stream).collect(Collectors.toCollection(ArrayList::new));
     }
 
     public static List<Move> diagonal(Chessboard b, BoardCoordinates from, Color color) {
@@ -35,7 +36,7 @@ public class MoveGenerator {
                 inDirection(b, from, color, TraceDirection.UP | TraceDirection.RIGHT),
                 inDirection(b, from, color, TraceDirection.DOWN | TraceDirection.LEFT),
                 inDirection(b, from, color, TraceDirection.DOWN | TraceDirection.RIGHT)
-        ).flatMap(Collection::stream).toList();
+        ).flatMap(Collection::stream).collect(Collectors.toCollection(ArrayList::new));
     }
 
     private static List<Move> inDirection(Chessboard b, BoardCoordinates from, Color color, int direction) {

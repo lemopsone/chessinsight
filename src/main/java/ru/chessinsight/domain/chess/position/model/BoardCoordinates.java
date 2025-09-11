@@ -16,6 +16,6 @@ public record BoardCoordinates(int rank, int file) {
 
     @Override
     public String toString() {
-        return "" + ('a' + file) + ('1' + rank);
+        return "" + (char)('a' + file) + (char)('1' + rank);
     }
 }

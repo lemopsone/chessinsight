@@ -5,6 +5,7 @@ import ru.chessinsight.domain.chess.position.model.Chessboard;
 import ru.chessinsight.domain.chess.move.model.Move;
 import ru.chessinsight.domain.chess.move.service.MoveGenerator;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -20,7 +21,7 @@ public class Queen extends Piece {
         return Stream.of(
                 MoveGenerator.diagonal(b, at, color),
                 MoveGenerator.orthogonal(b, at, color)
-        ).flatMap(Collection::stream).collect(Collectors.toList());
+        ).flatMap(Collection::stream).collect(Collectors.toCollection(ArrayList::new));
     }
 
     @Override
