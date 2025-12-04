@@ -4,6 +4,8 @@ import org.springframework.stereotype.Service;
 import ru.chessinsight.application.game.dto.GameMetadataDTO;
 import ru.chessinsight.application.game.exception.GameNotFoundException;
 import ru.chessinsight.application.game.service.GameService;
+import ru.chessinsight.domain.common.pagination.Page;
+import ru.chessinsight.domain.common.pagination.PageParams;
 import ru.chessinsight.domain.game.model.Game;
 import ru.chessinsight.domain.game.repository.GameRepository;
 
@@ -24,6 +26,11 @@ public class ConcreteGameService implements GameService {
     @Override
     public List<Game> findUserGames(UUID userId) {
         return gameRepository.findAllByUserId(userId);
+    }
+
+    @Override
+    public Page<Game> findUserGames(UUID userId, PageParams params) {
+        return gameRepository.findAllByUserId(userId, params);
     }
 
     @Override

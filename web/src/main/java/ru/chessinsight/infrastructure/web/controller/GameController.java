@@ -10,10 +10,12 @@ import ru.chessinsight.application.game.dto.GameMetadataDTO;
 import ru.chessinsight.application.game.exception.GameNotFoundException;
 import ru.chessinsight.application.game.service.GameImportService;
 import ru.chessinsight.application.game.service.GameService;
+import ru.chessinsight.domain.common.pagination.PageParams;
 import ru.chessinsight.domain.game.model.Game;
 import ru.chessinsight.infrastructure.web.api.GamesApi;
 import ru.chessinsight.infrastructure.web.dto.GameCreateFromPgnRequest;
 import ru.chessinsight.infrastructure.web.dto.GameDTO;
+import ru.chessinsight.infrastructure.web.dto.PageResponse;
 import ru.chessinsight.infrastructure.web.mapper.GameApiMapper;
 
 import java.util.List;
@@ -36,25 +38,33 @@ public class GameController implements GamesApi, ApiV1Controller {
     }
 
     @GetMapping("/games")
-    public ResponseEntity<List<GameDTO>> listMyGames(
-            @RequestParam(required = false) ru.chessinsight.infrastructure.web.dto.GameResult result
+    public ResponseEntity<PageResponse<GameDTO>> listMyGames(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size
     ) {
         UUID userId = authService.getCurrentUserId()
                 .orElseThrow(() -> new AccessDeniedException("Not authenticated"));
 
-        List<Game> games = gameService.findUserGames(userId);
-        if (result != null) {
-            var domainResult = gameApiMapper.toDomainResult(result);
-            games = games.stream()
-                    .filter(g -> domainResult.equals(g.getResult()))
-                    .toList();
-        }
+        int p = page != null ? page : 0;
+        int s = size != null ? size : 20;
 
-        List<GameDTO> dtoList = games.stream()
+        var pageResult = gameService.findUserGames(userId, new PageParams(p, s));
+
+        List<GameDTO> content = pageResult.content().stream()
                 .map(gameApiMapper::toGameDto)
-                .collect(Collectors.toList());
+                .toList();
 
-        return ResponseEntity.ok(dtoList);
+        PageResponse<GameDTO> response = new PageResponse<>(
+                content,
+                pageResult.page(),
+                pageResult.size(),
+                pageResult.totalElements(),
+                pageResult.totalPages(),
+                pageResult.hasNext(),
+                pageResult.hasPrevious()
+        );
+
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/games")

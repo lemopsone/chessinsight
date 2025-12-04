@@ -66,14 +66,14 @@ public class TrainingController implements CommandController {
                         if (userId == null) {
                             throw new CliAuthRequiredException();
                         }
-                        trainingService.getNewUserScenarios(userId)
+                        trainingService.getUserScenarios(userId, false)
                                 .forEach(s -> System.out.printf(
                                         "Scenario %s (completed=%s) game=%s%n",
                                         s.getId(), s.isCompleted(), s.getGameId()
                                 ));
                     }
                     case "demo" -> {
-                        trainingService.getNewUserScenarios(DEMO_USER_ID)
+                        trainingService.getUserScenarios(DEMO_USER_ID, false)
                                 .forEach(s -> System.out.printf(
                                         "Scenario %s [DEMO] game=%s%n",
                                         s.getId(), s.getGameId()

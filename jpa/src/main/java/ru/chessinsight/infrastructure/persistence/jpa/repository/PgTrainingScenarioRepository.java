@@ -1,6 +1,10 @@
 package ru.chessinsight.infrastructure.persistence.jpa.repository;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
+import ru.chessinsight.domain.common.pagination.Page;
+import ru.chessinsight.domain.common.pagination.PageParams;
 import ru.chessinsight.domain.game.training.model.TrainingScenario;
 import ru.chessinsight.domain.game.training.repository.TrainingScenarioRepository;
 import ru.chessinsight.infrastructure.persistence.jpa.hibernate.TrainingScenarioJpaRepository;
@@ -37,17 +41,57 @@ public class PgTrainingScenarioRepository implements TrainingScenarioRepository 
     }
 
     @Override
+    public Page<TrainingScenario> findAllByUserId(UUID userId, PageParams params) {
+        Pageable pageable = PageRequest.of(params.page(), params.size());
+
+        org.springframework.data.domain.Page<TrainingScenarioEntity> springPage =
+                jpaRepository.findAllByUserId(userId, pageable);
+
+        List<TrainingScenario> content = springPage.getContent().stream()
+                .map(mapper::toDomain)
+                .toList();
+
+        return new Page<>(
+                content,
+                params.page(),
+                params.size(),
+                springPage.getTotalElements()
+        );
+    }
+
+    @Override
     public List<TrainingScenario> findAllByGameId(UUID gameId) {
         return jpaRepository.findAllByGameId(gameId).stream().map(mapper::toDomain).toList();
     }
 
     @Override
-    public List<TrainingScenario> findAllUncompletedForUser(UUID userId) {
-        return jpaRepository.findAllByUserIdAndCompleted(userId, false).stream().map(mapper::toDomain).toList();
+    public List<TrainingScenario> findAllByCompletionForUser(UUID userId, Boolean completed) {
+        if (completed != null) {
+            return jpaRepository.findAllByUserIdAndCompleted(userId, completed).stream().map(mapper::toDomain).toList();
+        }
+        return jpaRepository.findAllByUserId(userId).stream().map(mapper::toDomain).toList();
     }
 
     @Override
-    public List<TrainingScenario> findAllCompletedForUser(UUID userId) {
-        return jpaRepository.findAllByUserIdAndCompleted(userId, true).stream().map(mapper::toDomain).toList();
+    public Page<TrainingScenario> findAllByCompletionForUser(UUID userId, Boolean completed, PageParams params) {
+        Pageable pageable = PageRequest.of(params.page(), params.size());
+
+        org.springframework.data.domain.Page<TrainingScenarioEntity> springPage;
+        if (completed != null) {
+            springPage = jpaRepository.findAllByUserIdAndCompleted(userId, completed, pageable);
+        } else {
+            springPage = jpaRepository.findAllByUserId(userId, pageable);
+        }
+
+        List<TrainingScenario> content = springPage.getContent().stream()
+                .map(mapper::toDomain)
+                .toList();
+
+        return new Page<>(
+                content,
+                params.page(),
+                params.size(),
+                springPage.getTotalElements()
+        );
     }
 }

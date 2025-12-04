@@ -3,14 +3,18 @@ package ru.chessinsight.infrastructure.web.controller;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.parameters.P;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import ru.chessinsight.application.auth.service.AuthService;
 import ru.chessinsight.application.game.training.dto.TrainingMoveRequest;
 import ru.chessinsight.application.game.training.dto.TrainingMoveResponse;
 import ru.chessinsight.application.game.training.service.TrainingService;
+import ru.chessinsight.domain.common.pagination.Page;
+import ru.chessinsight.domain.common.pagination.PageParams;
 import ru.chessinsight.domain.game.training.model.TrainingScenario;
 import ru.chessinsight.infrastructure.web.api.TrainingApi;
+import ru.chessinsight.infrastructure.web.dto.PageResponse;
 import ru.chessinsight.infrastructure.web.dto.TrainingScenarioDTO;
 import ru.chessinsight.infrastructure.web.mapper.TrainingApiMapper;
 
@@ -32,20 +36,34 @@ public class TrainingController implements TrainingApi, ApiV1Controller {
     }
 
     @GetMapping("/training/scenarios")
-    public ResponseEntity<List<TrainingScenarioDTO>> listScenarios(
-            @RequestParam(required = false) Boolean completed
+    public ResponseEntity<PageResponse<TrainingScenarioDTO>> listScenarios(
+            @RequestParam(required = false) Boolean completed,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size
+
     ) {
+        int p = page != null ? page : 0;
+        int s = size != null ? size : 20;
+
         UUID userId = authService.getCurrentUserId()
                 .orElseThrow(() -> new AccessDeniedException("Not authenticated"));
 
-        List<TrainingScenario> scenarios = trainingService.getNewUserScenarios(userId);
-        if (completed != null) {
-            scenarios = scenarios.stream()
-                    .filter(s -> completed.equals(s.isCompleted()))
-                    .collect(Collectors.toList());
-        }
+        Page<TrainingScenario> scenarios = trainingService.getUserScenarios(userId, completed, new PageParams(p, s));
+        var content = scenarios.content().stream()
+                .map(trainingApiMapper::toScenarioDto)
+                .toList();
 
-        return ResponseEntity.ok(trainingApiMapper.toScenarioDtoList(scenarios));
+        PageResponse<TrainingScenarioDTO> response = new PageResponse<>(
+                content,
+                scenarios.page(),
+                scenarios.size(),
+                scenarios.totalElements(),
+                scenarios.totalPages(),
+                scenarios.hasNext(),
+                scenarios.hasPrevious()
+        );
+
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/training/scenarios/{scenarioId}")
