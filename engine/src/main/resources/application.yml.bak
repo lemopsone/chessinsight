@@ -1,0 +1,7 @@
+engine:
+  stockfish:
+    mode: tcp
+    host: stockfish
+    port: 5555
+    path: /usr/local/bin/stockfish
+    defaultDepth: 15
