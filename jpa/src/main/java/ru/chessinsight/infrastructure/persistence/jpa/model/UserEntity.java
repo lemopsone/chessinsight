@@ -20,6 +20,9 @@ public class UserEntity {
     @Column(name = "password_hash")
     private String passwordHash;
 
+    @Column(name = "active")
+    private boolean active = true;
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private Set<UserRoleEntity> roles = new HashSet<>();
 
@@ -80,5 +83,13 @@ public class UserEntity {
             roles.add(e);
             e.setUser(this);
         }
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
     }
 }

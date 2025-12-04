@@ -26,6 +26,7 @@ public class UserMapper implements EntityMapper<User, UserEntity> {
         user.setEmail(e.getEmail());
         user.setPasswordHash(e.getPasswordHash());
         user.setStatistics(stats);
+        user.setActive(e.isActive());
         user.setRoles(e.getRoles().stream().map(r -> Role.valueOf(r.getRole())).collect(Collectors.toSet()));
         return user;
     }
@@ -40,6 +41,7 @@ public class UserMapper implements EntityMapper<User, UserEntity> {
         e.setEmail(d.getEmail());
         e.setPasswordHash(d.getPasswordHash());
         e.setStatistics(stats);
+        e.setActive(d.isActive());
         if (d.getRoles() != null) {
             d.getRoles().forEach(r -> {
                 var re = new UserRoleEntity();
