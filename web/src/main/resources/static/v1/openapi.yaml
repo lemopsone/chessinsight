@@ -275,13 +275,11 @@ paths:
             type: boolean
       responses:
         '200':
-          description: Список партий
+          description: Пагинированный список партий
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/GameDTO'
+                $ref: '#/components/schemas/PageResponseGameDTO'
         '401':
           description: Не авторизован
           content:
@@ -560,13 +558,11 @@ paths:
             type: boolean
       responses:
         '200':
-          description: Список тренировочных сценариев
+          description: Пагинированный список тренировочных сценариев
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/TrainingScenarioDTO'
+                $ref: '#/components/schemas/PageResponseTrainingScenarioDTO'
         '401':
           description: Не авторизован
           content:
@@ -644,41 +640,37 @@ paths:
 
   /admin/users:
     get:
-      tags: [Admin]
-      summary: Список пользователей (админ)
-      operationId: adminListUsers
-      security:
-        - bearerAuth: []
+      summary: "Список пользователей"
       parameters:
         - in: query
           name: page
-          required: false
           schema:
             type: integer
+            format: int32
             minimum: 0
-            default: 0
         - in: query
           name: size
-          required: false
           schema:
             type: integer
+            format: int32
             minimum: 1
-            maximum: 100
-            default: 20
         - in: query
           name: active
-          required: false
           schema:
             type: boolean
+        - in: query
+          name: roles
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/UserRole'
       responses:
         '200':
-          description: Список пользователей
+          description: "Пагинированный список пользователей"
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/AdminUserDTO'
+                $ref: '#/components/schemas/PageResponseAdminUserDTO'
         '401':
           description: Не авторизован
           content:
@@ -955,13 +947,15 @@ components:
         email:
           type: string
           format: email
+        active:
+          type: boolean
         roles:
           type: array
           items:
             $ref: '#/components/schemas/UserRole'
         statistics:
           $ref: '#/components/schemas/UserStatisticsDTO'
-      required: [id, login, email, roles]
+      required: [id, login, email, roles, active]
 
     AdminUserDTO:
       allOf:
@@ -1185,3 +1179,89 @@ components:
           type: array
           items:
             type: string
+
+    PageResponseAdminUserDTO:
+      type: object
+      description: "Пагинированный список пользователей (админка)"
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminUserDTO'
+        page:
+          type: integer
+          format: int32
+          minimum: 0
+        size:
+          type: integer
+          format: int32
+          minimum: 1
+        totalElements:
+          type: integer
+          format: int64
+          minimum: 0
+        totalPages:
+          type: integer
+          format: int32
+          minimum: 0
+        hasNext:
+          type: boolean
+        hasPrevious:
+          type: boolean
+      required: [content, page, size, totalElements, totalPages, hasNext, hasPrevious]
+
+    PageResponseGameDTO:
+      type: object
+      description: "Пагинированный список партий"
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/GameDTO'
+        page:
+          type: integer
+          format: int32
+          minimum: 0
+        size:
+          type: integer
+          format: int32
+          minimum: 1
+        totalElements:
+          type: integer
+          format: int64
+          minimum: 0
+        totalPages:
+          type: integer
+          format: int32
+          minimum: 0
+        hasNext:
+          type: boolean
+        hasPrevious:
+          type: boolean
+      required: [content, page, size, totalElements, totalPages, hasNext, hasPrevious]
+
+    PageResponseTrainingScenarioDTO:
+      type: object
+      description: "Пагинированный список тренировочных сценариев"
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/TrainingScenarioDTO'
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        hasNext:
+          type: boolean
+        hasPrevious:
+          type: boolean
+      required: [ content, page, size, totalElements, totalPages, hasNext, hasPrevious ]
