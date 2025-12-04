@@ -1021,9 +1021,6 @@ components:
           type: string
         result:
           $ref: '#/components/schemas/GameResult'
-        eco:
-          type: string
-          nullable: true
         pgn:
           type: string
         moves:
