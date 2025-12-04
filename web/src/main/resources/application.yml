@@ -1,0 +1,51 @@
+spring:
+  application:
+    name: chessinsight-api
+  main:
+    banner-mode: off
+
+  datasource:
+    url: ${PG_URL:jdbc:postgresql://postgres:5432/chess_insight}
+    username: ${PG_USER:admin}
+    password: ${PG_PASS:admin}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+
+  data:
+    redis:
+      host: redis
+      port: 6379
+      connect-timeout: 10s
+
+engine:
+  stockfish:
+    mode: tcp
+    host: stockfish
+    port: 5555
+    path: /usr/local/bin/stockfish
+    defaultDepth: 15
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+jwt:
+  secret: ${JWT_SECRET_KEY:asdkoasfiuwerjfniwef_32124Q_e}
+  expiration: 3600
+
+logging:
+  level:
+    root: info
+    ru.chessinsight: debug
+
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v1/api-docs
+  swagger-ui:
+    path: /v1/swagger-ui.html
+    url: /v1/openapi.yaml

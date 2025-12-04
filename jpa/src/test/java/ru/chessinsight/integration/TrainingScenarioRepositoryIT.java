@@ -48,7 +48,7 @@ public class TrainingScenarioRepositoryIT extends AbstractIntegrationTest {
         var forUser = repo.findAllByUserId(user.getId());
         Assertions.assertEquals(1, forUser.size());
 
-        var uncompleted = repo.findAllUncompletedForUser(user.getId());
+        var uncompleted = repo.findAllByCompletionForUser(user.getId(), false);
         Assertions.assertEquals(1, uncompleted.size());
 
         saved.setCompleted(true);

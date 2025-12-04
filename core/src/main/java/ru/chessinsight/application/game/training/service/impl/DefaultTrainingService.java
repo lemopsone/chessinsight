@@ -14,6 +14,8 @@ import ru.chessinsight.application.game.training.service.exception.ScenarioCreat
 import ru.chessinsight.domain.chess.move.notation.service.UciNotationService;
 import ru.chessinsight.domain.chess.move.service.MoveMaker;
 import ru.chessinsight.domain.chess.position.model.Position;
+import ru.chessinsight.domain.common.pagination.Page;
+import ru.chessinsight.domain.common.pagination.PageParams;
 import ru.chessinsight.domain.game.training.model.TrainingScenario;
 import ru.chessinsight.domain.game.training.repository.TrainingScenarioRepository;
 
@@ -105,8 +107,13 @@ public class DefaultTrainingService implements TrainingService {
     }
 
     @Override
-    public List<TrainingScenario> getNewUserScenarios(UUID userId) {
-        return scenarioRepository.findAllUncompletedForUser(userId);
+    public List<TrainingScenario> getUserScenarios(UUID userId, Boolean completed) {
+        return scenarioRepository.findAllByCompletionForUser(userId, completed);
+    }
+
+    @Override
+    public Page<TrainingScenario> getUserScenarios(UUID userId, Boolean completed, PageParams params) {
+        return scenarioRepository.findAllByCompletionForUser(userId, completed, params);
     }
 
     @Override

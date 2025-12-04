@@ -1,6 +1,10 @@
 package ru.chessinsight.infrastructure.persistence.jpa.repository;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
+import ru.chessinsight.domain.common.pagination.Page;
+import ru.chessinsight.domain.common.pagination.PageParams;
 import ru.chessinsight.domain.game.model.Game;
 import ru.chessinsight.domain.game.repository.GameRepository;
 import ru.chessinsight.infrastructure.persistence.jpa.hibernate.GameJpaRepository;
@@ -37,7 +41,31 @@ public class PgGameRepository implements GameRepository {
     }
 
     @Override
+    public Page<Game> findAllByUserId(UUID userId, PageParams params) {
+        Pageable pageable = PageRequest.of(params.page(), params.size());
+
+        org.springframework.data.domain.Page<GameEntity> springPage;
+        springPage = jpaRepository.findAllByUserId(userId, pageable);
+
+        List<Game> content = springPage.getContent().stream()
+                .map(mapper::toDomain)
+                .toList();
+
+        return new Page<>(
+                content,
+                params.page(),
+                params.size(),
+                springPage.getTotalElements()
+        );
+    }
+
+    @Override
     public List<Game> findAllByPgn(String pgn) {
         return jpaRepository.findAllByPgn(pgn).stream().map(mapper::toDomain).toList();
+    }
+
+    @Override
+    public void delete(Game game) {
+        jpaRepository.delete(mapper.toEntity(game));
     }
 }
