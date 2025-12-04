@@ -40,4 +40,9 @@ public class PgGameRepository implements GameRepository {
     public List<Game> findAllByPgn(String pgn) {
         return jpaRepository.findAllByPgn(pgn).stream().map(mapper::toDomain).toList();
     }
+
+    @Override
+    public void delete(Game game) {
+        jpaRepository.delete(mapper.toEntity(game));
+    }
 }

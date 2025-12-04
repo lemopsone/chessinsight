@@ -11,4 +11,5 @@ public interface GameRepository {
     Optional<Game> findOneById(UUID id);
     List<Game> findAllByUserId(UUID userId);
     List<Game> findAllByPgn(String pgn);
+    void delete(Game game);
 }
