@@ -1,0 +1,15 @@
+FROM ubuntu:22.04
+
+RUN apt-get update && apt-get install -y \
+    git build-essential cmake wget socat
+
+RUN git clone https://github.com/official-stockfish/Stockfish.git /stockfish
+RUN cd /stockfish/src && make build ARCH=x86-64
+RUN mv /stockfish/src/stockfish /usr/local/bin/stockfish \
+ && rm -rf /var/lib/apt/lists/* /stockfish
+
+RUN wget -O /usr/local/bin/nn-1c0000000000.nnue \
+    https://tests.stockfishchess.org/api/nn/nn-1c0000000000.nnue
+
+EXPOSE 5555
+CMD ["socat", "TCP-LISTEN:5555,reuseaddr,fork", "exec:'/usr/local/bin/stockfish'"]
