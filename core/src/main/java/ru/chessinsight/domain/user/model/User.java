@@ -10,9 +10,10 @@ public class User implements Serializable {
     private String passwordHash;
     private UserStatistics statistics;
     private Set<Role> roles = new HashSet<>();
+    private boolean active = true;
 
     public User() { }
-    public User(UUID id, String login, String email, String passwordHash, UserStatistics statistics, Set<Role> roles) {
+    public User(UUID id, String login, String email, String passwordHash, UserStatistics statistics, Set<Role> roles, boolean active) {
         this.id = id;
         this.login = login;
         this.email = email;
@@ -23,6 +24,7 @@ public class User implements Serializable {
         } else {
             roles = new HashSet<>();
         }
+        this.active = active;
     }
 
     public UUID getId() {
@@ -82,5 +84,13 @@ public class User implements Serializable {
 
     public void removeRole(Role role) {
         this.roles.remove(role);
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
     }
 }

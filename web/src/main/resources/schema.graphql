@@ -1,0 +1,258 @@
+scalar Date
+scalar DateTime
+scalar UUID
+
+enum UserRole {
+  GUEST
+  USER
+  ADMIN
+}
+
+enum GameResult {
+  WHITE_WIN
+  BLACK_WIN
+  DRAW
+  UNFINISHED
+}
+
+enum TrainingMoveStatus {
+  CONTINUE
+  COMPLETED
+  INCORRECT
+}
+
+enum AuthType {
+  JWT
+  OAUTH
+}
+
+interface UserInterface {
+  id: UUID!
+  login: String!
+  email: String!
+  roles: [UserRole!]!
+}
+
+type UserStatistics {
+  accuracy: Float
+  accuracyWhite: Float
+  accuracyBlack: Float
+}
+
+type User implements UserInterface {
+  id: UUID!
+  login: String!
+  email: String!
+  roles: [UserRole!]!
+  statistics: UserStatistics
+  games(
+    result: GameResult
+    analyzed: Boolean
+    dateFrom: Date
+    dateTo: Date
+  ): [Game!]!
+  trainingScenarios(completed: Boolean): [TrainingScenario!]!
+}
+
+type AdminUser implements UserInterface {
+  id: UUID!
+  login: String!
+  email: String!
+  roles: [UserRole!]!
+  statistics: UserStatistics
+  active: Boolean!
+}
+
+type GameMove {
+  id: UUID!
+  plyIndex: Int!
+  san: String!
+  uci: String!
+  positionFEN: String!
+  commentBefore: String
+  commentAfter: String
+}
+
+type Game {
+  id: UUID!
+  user: User!
+  event: String
+  site: String
+  date: Date
+  round: String
+  whiteName: String!
+  blackName: String!
+  result: GameResult!
+  eco: String
+  pgn: String!
+  moves: [GameMove!]!
+  analysis: GameAnalysis
+}
+
+type Move {
+  moveNum: Int!
+  positionFEN: String!
+  moveSAN: String!
+  moveUCI: String!
+}
+
+type MoveAnalysis {
+  positionFEN: String!
+  bestMove: Move!
+  bestMoveEval: Float!
+  playerMoveEval: Float!
+  mateScore: Int
+}
+
+type GameAnalysis {
+  game: Game!
+  user: User!
+  accuracyWhite: Float!
+  accuracyBlack: Float!
+  bestMoves: [MoveAnalysis!]!
+  goodMoves: [MoveAnalysis!]!
+  inaccuracies: [MoveAnalysis!]!
+  mistakes: [MoveAnalysis!]!
+  blunders: [MoveAnalysis!]!
+}
+
+type TrainingScenario {
+  id: UUID!
+  user: User!
+  game: Game!
+  positionFEN: String!
+  pvSan: String
+  pvUci: String
+  prompt: String!
+  completed: Boolean!
+  completedAt: DateTime
+}
+
+type TrainingMoveResponse {
+  status: TrainingMoveStatus!
+  message: String!
+  acceptedMoveUci: String
+  opponentMoveUci: String
+  nextCursor: Int
+  completed: Boolean!
+  hintPvSan: [String!]!
+  hintPvUci: [String!]!
+}
+
+type AuthTokens {
+  accessToken: String!
+  refreshToken: String!
+  tokenType: String!
+}
+
+type AuthPayload {
+  user: User!
+  tokens: AuthTokens!
+}
+
+input SignUpInput {
+  login: String!
+  email: String!
+  password: String!
+}
+
+input SignInInput {
+  loginOrEmail: String!
+  passwordOrToken: String!
+  authType: AuthType!
+}
+
+input GameCreateFromPgnInput {
+  pgn: String!
+  startFen: String
+  resultTag: String
+}
+
+input GameUpdateInput {
+  event: String!
+  site: String!
+  date: Date!
+  round: String!
+  whiteName: String!
+  blackName: String!
+  result: GameResult!
+}
+
+input GamePatchInput {
+  event: String
+  site: String
+  date: Date
+  round: String
+  result: GameResult
+}
+
+input MoveInput {
+  moveNum: Int!
+  positionFEN: String!
+  moveSAN: String!
+  moveUCI: String!
+}
+
+input TrainingMoveInput {
+  scenarioId: UUID!
+  cursor: Int!
+  moveUCI: String!
+  isDemo: Boolean!
+}
+
+input AdminCreateUserInput {
+  login: String!
+  email: String!
+  password: String!
+  roles: [UserRole!]!
+}
+
+input AdminUpdateUserInput {
+  login: String
+  email: String
+  roles: [UserRole!]
+  active: Boolean
+}
+
+type Query {
+  me: User
+  myGames(
+    result: GameResult
+    analyzed: Boolean
+    dateFrom: Date
+    dateTo: Date
+  ): [Game!]!
+  game(id: UUID!): Game
+  gameAnalysis(gameId: UUID!): GameAnalysis
+  myTrainingScenarios(completed: Boolean): [TrainingScenario!]!
+  trainingScenario(id: UUID!): TrainingScenario
+  adminUsers(
+    page: Int = 0
+    size: Int = 20
+    active: Boolean
+  ): [AdminUser!]!
+  adminUser(id: UUID!): AdminUser
+}
+
+type Mutation {
+  signUp(input: SignUpInput!): AuthPayload!
+  signIn(input: SignInInput!): AuthPayload!
+  refreshToken(refreshToken: String!): AuthPayload!
+  signOut(refreshToken: String!): Boolean!
+
+  updateMe(email: String, password: String): User!
+
+  importGameFromPgn(input: GameCreateFromPgnInput!): Game!
+  updateGame(id: UUID!, input: GameUpdateInput!): Game!
+  patchGame(id: UUID!, input: GamePatchInput!): Game!
+  deleteGame(id: UUID!): Boolean!
+
+  analyzeGame(gameId: UUID!): GameAnalysis!
+  analyzeMove(move: MoveInput!): MoveAnalysis!
+
+  submitTrainingMove(input: TrainingMoveInput!): TrainingMoveResponse!
+
+  adminCreateUser(input: AdminCreateUserInput!): AdminUser!
+  adminUpdateUser(id: UUID!, input: AdminUpdateUserInput!): AdminUser!
+  adminDeactivateUser(id: UUID!): Boolean!
+}

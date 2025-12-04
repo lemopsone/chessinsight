@@ -1,0 +1,1190 @@
+openapi: 3.1.1
+info:
+  title: ChessInsight API v1
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080/api/v1
+    description: dev
+  - url: https://chessinsight.lemopsone.com/api/v1
+    description: prod
+
+tags:
+  - name: Auth
+    description: Аутентификация и управление токенами
+  - name: Users
+    description: Работа с пользователями (профиль, статистика)
+  - name: Games
+    description: Шахматные партии и операции над ними
+  - name: Analysis
+    description: Анализ партий и отдельных ходов
+  - name: Training
+    description: Тренировочные сценарии и обучение
+  - name: Admin
+    description: Админ-панель
+
+paths:
+  /auth/signup:
+    post:
+      tags: [Auth]
+      summary: Регистрация пользователя
+      operationId: signUp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignUpDTO'
+      responses:
+        '201':
+          description: Пользователь зарегистрирован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserTokenDTO'
+        '400':
+          description: Некорректные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Пользователь уже существует
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /auth/signin:
+    post:
+      tags: [Auth]
+      summary: Вход пользователя
+      operationId: signIn
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignInDTO'
+      responses:
+        '200':
+          description: Успешный вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserTokenDTO'
+        '400':
+          description: Некорректные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Неверные учетные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Обновление токена
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+              required:
+                - refreshToken
+      responses:
+        '200':
+          description: Новый токен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserTokenDTO'
+        '401':
+          description: Невалидный или истекший refresh-токен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /auth/signout:
+    post:
+      tags: [Auth]
+      summary: Выход, инвалидация refresh-токена
+      operationId: signOut
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+              required: [refreshToken]
+      responses:
+        '204':
+          description: Успешный выход
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /auth/me:
+    get:
+      tags: [Users]
+      summary: Информация о текущем пользователе (через auth)
+      operationId: getCurrentUserAuth
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Профиль текущего пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDTO'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Профиль текущего пользователя
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Профиль пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDTO'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    patch:
+      tags: [Users]
+      summary: Частичное обновление профиля
+      description: Пример частичного UPDATE (PATCH) для пользователя.
+      operationId: patchCurrentUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Любое поле может быть опущено
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Обновлённый профиль пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDTO'
+        '400':
+          description: Некорректные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /users/me/statistics:
+    get:
+      tags: [Users]
+      summary: Статистика текущего пользователя
+      operationId: getMyStatistics
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Статистика пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserStatisticsDTO'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /games:
+    get:
+      tags: [Games]
+      summary: Список партий текущего пользователя
+      operationId: listMyGames
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: result
+          required: false
+          schema:
+            $ref: '#/components/schemas/GameResult'
+        - in: query
+          name: dateFrom
+          required: false
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: dateTo
+          required: false
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: analyzed
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Список партий
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GameDTO'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    post:
+      tags: [Games]
+      summary: Импорт партии из PGN
+      description: Создание партии через PGN-текст, используется GameImportService.
+      operationId: importGameFromPgn
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GameCreateFromPgnRequest'
+      responses:
+        '201':
+          description: Партия создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameDTO'
+        '400':
+          description: Некорректный PGN или данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /games/{gameId}:
+    parameters:
+      - in: path
+        name: gameId
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Games]
+      summary: Получить партию
+      operationId: getGame
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Партия
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameDTO'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Партия не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    put:
+      tags: [Games]
+      summary: Полная замена метаданных партии
+      description: Полный UPDATE метаданных партии (кроме id и userId).
+      operationId: replaceGame
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event:
+                  type: string
+                site:
+                  type: string
+                date:
+                  type: string
+                  format: date
+                round:
+                  type: string
+                whiteName:
+                  type: string
+                blackName:
+                  type: string
+                result:
+                  $ref: '#/components/schemas/GameResult'
+              required: [event, site, date, round, whiteName, blackName, result]
+      responses:
+        '200':
+          description: Обновлённая партия
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameDTO'
+        '400':
+          description: Некорректные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Партия не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    patch:
+      tags: [Games]
+      summary: Частичное обновление метаданных партии
+      description: Частичный UPDATE метаданных партии (пример частичного обновления ресурса).
+      operationId: patchGame
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event:
+                  type: string
+                site:
+                  type: string
+                date:
+                  type: string
+                  format: date
+                round:
+                  type: string
+                result:
+                  $ref: '#/components/schemas/GameResult'
+      responses:
+        '200':
+          description: Обновлённая партия
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameDTO'
+        '400':
+          description: Некорректные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Партия не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    delete:
+      tags: [Games]
+      summary: Удалить партию
+      description: Честное удаление сущности Game (hard delete).
+      operationId: deleteGame
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Партия удалена
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Партия не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /games/{gameId}/analysis:
+    post:
+      tags: [Analysis]
+      summary: Проанализировать партию
+      description: Синхронный анализ партии с использованием AnalysisService.
+      operationId: analyzeGame
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: gameId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Результат анализа партии
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameAnalysisDTO'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Партия не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /analysis/move:
+    post:
+      tags: [Analysis]
+      summary: Анализ отдельного хода
+      description: Анализ одного хода в заданной позиции.
+      operationId: analyzeMove
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MoveDTO'
+      responses:
+        '200':
+          description: Результат анализа хода
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MoveAnalysisDTO'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /training/scenarios:
+    get:
+      tags: [Training]
+      summary: Сценарии тренировки текущего пользователя
+      operationId: listMyTrainingScenarios
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: completed
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Список тренировочных сценариев
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TrainingScenarioDTO'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /training/scenarios/{scenarioId}:
+    get:
+      tags: [Training]
+      summary: Получить тренировочный сценарий
+      operationId: getTrainingScenario
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: scenarioId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Сценарий
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrainingScenarioDTO'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Сценарий не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /training/move:
+    post:
+      tags: [Training]
+      summary: Сделать ход в тренировочном сценарии
+      description: Обработка хода пользователя в тренировке (TrainingService).
+      operationId: submitTrainingMove
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrainingMoveRequest'
+      responses:
+        '200':
+          description: Ответ тренировки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrainingMoveResponse'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Сценарий не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /admin/users:
+    get:
+      tags: [Admin]
+      summary: Список пользователей (админ)
+      operationId: adminListUsers
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - in: query
+          name: size
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - in: query
+          name: active
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Список пользователей
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdminUserDTO'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Нет прав (требуется ADMIN)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    post:
+      tags: [Admin]
+      summary: Создать пользователя (админ)
+      operationId: adminCreateUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/SignUpDTO'
+                - type: object
+                  properties:
+                    roles:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/UserRole'
+      responses:
+        '201':
+          description: Пользователь создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserDTO'
+        '400':
+          description: Некорректные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Нет прав
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /admin/users/{userId}:
+    parameters:
+      - in: path
+        name: userId
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Admin]
+      summary: Получить пользователя (админ)
+      operationId: adminGetUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Пользователь
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserDTO'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Нет прав
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Пользователь не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    patch:
+      tags: [Admin]
+      summary: Частичное обновление пользователя (админ)
+      description: Частичный UPDATE (смена ролей, почты, логина, активации).
+      operationId: adminPatchUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                login:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                roles:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/UserRole'
+                active:
+                  type: boolean
+      responses:
+        '200':
+          description: Обновлённый пользователь
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserDTO'
+        '400':
+          description: Некорректные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Нет прав
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Пользователь не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    delete:
+      tags: [Admin]
+      summary: Деактивировать пользователя (soft delete)
+      description: Установка active=false вместо физического удаления.
+      operationId: adminDeactivateUser
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Пользователь деактивирован
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Нет прав
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Пользователь не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ProblemDetails:
+      type: object
+      description: Структура ошибки в стиле RFC 7807
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+
+    AuthType:
+      type: string
+      enum: [JWT, OAUTH]
+
+    SignUpDTO:
+      type: object
+      required: [login, email, password]
+      properties:
+        login:
+          type: string
+          minLength: 3
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 8
+
+    SignInDTO:
+      type: object
+      required: [loginOrEmail, passwordOrToken, authType]
+      properties:
+        loginOrEmail:
+          type: string
+        passwordOrToken:
+          type: string
+        authType:
+          $ref: '#/components/schemas/AuthType'
+
+    UserTokenDTO:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        tokenType:
+          type: string
+      required: [accessToken, refreshToken, tokenType]
+
+    UserRole:
+      type: string
+      enum: [GUEST, USER, ADMIN]
+
+    UserStatisticsDTO:
+      type: object
+      properties:
+        accuracy:
+          type: number
+          format: double
+          nullable: true
+        accuracyWhite:
+          type: number
+          format: double
+          nullable: true
+        accuracyBlack:
+          type: number
+          format: double
+          nullable: true
+
+    UserDTO:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        login:
+          type: string
+        email:
+          type: string
+          format: email
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserRole'
+        statistics:
+          $ref: '#/components/schemas/UserStatisticsDTO'
+      required: [id, login, email, roles]
+
+    AdminUserDTO:
+      allOf:
+        - $ref: '#/components/schemas/UserDTO'
+        - type: object
+          properties:
+            active:
+              type: boolean
+
+    GameResult:
+      type: string
+      enum: [WHITE_WIN, BLACK_WIN, DRAW, UNFINISHED]
+
+    GameMoveDTO:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        plyIndex:
+          type: integer
+        san:
+          type: string
+        uci:
+          type: string
+        positionFEN:
+          type: string
+        commentBefore:
+          type: string
+          nullable: true
+        commentAfter:
+          type: string
+          nullable: true
+      required: [id, plyIndex, san, uci, positionFEN]
+
+    GameDTO:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        event:
+          type: string
+        site:
+          type: string
+        date:
+          type: string
+          format: date
+        round:
+          type: string
+        whiteName:
+          type: string
+        blackName:
+          type: string
+        result:
+          $ref: '#/components/schemas/GameResult'
+        eco:
+          type: string
+          nullable: true
+        pgn:
+          type: string
+        moves:
+          type: array
+          items:
+            $ref: '#/components/schemas/GameMoveDTO'
+      required: [id, userId, whiteName, blackName, result, pgn]
+
+    GameCreateFromPgnRequest:
+      type: object
+      required: [pgn]
+      properties:
+        pgn:
+          type: string
+          description: PGN-текст партии
+        startFen:
+          type: string
+          nullable: true
+          description: Начальная позиция (опционально)
+        resultTag:
+          type: string
+          nullable: true
+          description: Ручное переопределение результата
+
+    MoveDTO:
+      type: object
+      properties:
+        moveNum:
+          type: integer
+          format: int64
+        positionFEN:
+          type: string
+        moveSAN:
+          type: string
+        moveUCI:
+          type: string
+      required: [moveNum, positionFEN, moveSAN, moveUCI]
+
+    MoveAnalysisDTO:
+      type: object
+      properties:
+        positionFEN:
+          type: string
+        bestMove:
+          $ref: '#/components/schemas/MoveDTO'
+        bestMoveEval:
+          type: number
+          format: double
+        playerMoveEval:
+          type: number
+          format: double
+        mateScore:
+          type: integer
+          nullable: true
+
+    GameAnalysisDTO:
+      type: object
+      properties:
+        gameId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        accuracyWhite:
+          type: number
+          format: double
+        accuracyBlack:
+          type: number
+          format: double
+        bestMoves:
+          type: array
+          items:
+            $ref: '#/components/schemas/MoveAnalysisDTO'
+        goodMoves:
+          type: array
+          items:
+            $ref: '#/components/schemas/MoveAnalysisDTO'
+        inaccuracies:
+          type: array
+          items:
+            $ref: '#/components/schemas/MoveAnalysisDTO'
+        mistakes:
+          type: array
+          items:
+            $ref: '#/components/schemas/MoveAnalysisDTO'
+        blunders:
+          type: array
+          items:
+            $ref: '#/components/schemas/MoveAnalysisDTO'
+
+    TrainingScenarioDTO:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        gameId:
+          type: string
+          format: uuid
+        positionFEN:
+          type: string
+        pvSan:
+          type: string
+          nullable: true
+        pvUci:
+          type: string
+          nullable: true
+        prompt:
+          type: string
+        completed:
+          type: boolean
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required: [id, userId, gameId, positionFEN, prompt, completed]
+
+    TrainingMoveStatus:
+      type: string
+      enum: [CONTINUE, COMPLETED, INCORRECT]
+
+    TrainingMoveRequest:
+      type: object
+      required: [scenarioId, cursor, moveUCI, isDemo]
+      properties:
+        scenarioId:
+          type: string
+          format: uuid
+        cursor:
+          type: integer
+        moveUCI:
+          type: string
+        isDemo:
+          type: boolean
+
+    TrainingMoveResponse:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/TrainingMoveStatus'
+        message:
+          type: string
+        acceptedMoveUci:
+          type: string
+          nullable: true
+        opponentMoveUci:
+          type: string
+          nullable: true
+        nextCursor:
+          type: integer
+        completed:
+          type: boolean
+        hintPvSan:
+          type: array
+          items:
+            type: string
+        hintPvUci:
+          type: array
+          items:
+            type: string
