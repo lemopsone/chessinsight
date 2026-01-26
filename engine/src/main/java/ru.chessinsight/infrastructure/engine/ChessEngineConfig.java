@@ -23,8 +23,11 @@ public class ChessEngineConfig {
     public ChessEngine tcpStockfish(
             @Value("${engine.stockfish.host}") String host,
             @Value("${engine.stockfish.port}") int port,
-            @Value("${engine.stockfish.defaultDepth:15}") int defaultDepth
+            @Value("${engine.stockfish.defaultDepth:15}") int defaultDepth,
+            @Value("${engine.stockfish.threads:2}") int threads,
+            @Value("${engine.stockfish.hash:128}") int hashMb,
+            @Value("${engine.stockfish.ponder:false}") boolean ponder
     ) throws Exception {
-        return new TcpStockfish(host, port, defaultDepth);
+        return new TcpStockfish(host, port, defaultDepth, threads, hashMb, ponder);
     }
 }

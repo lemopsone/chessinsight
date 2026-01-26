@@ -63,4 +63,27 @@ public class SanNotationServiceTest {
         assertThrows(DomainException.class, () -> san.sanToMove("Zz9", Position.initial()));
         assertThrows(DomainException.class, () -> san.sanToMove("abc", Position.initial()));
     }
+
+    @Test
+    void san_resolves_pinned_knight() {
+        Position pos = Position.initial();
+        pos = MoveMaker.apply(pos, uci.uciToMove("d2d4", pos));
+        pos = MoveMaker.apply(pos, uci.uciToMove("d7d5", pos));
+        pos = MoveMaker.apply(pos, uci.uciToMove("b1c3", pos));
+        pos = MoveMaker.apply(pos, uci.uciToMove("g8f6", pos));
+        pos = MoveMaker.apply(pos, uci.uciToMove("c1g5", pos));
+        pos = MoveMaker.apply(pos, uci.uciToMove("e7e6", pos));
+        pos = MoveMaker.apply(pos, uci.uciToMove("e2e4", pos));
+        pos = MoveMaker.apply(pos, uci.uciToMove("h7h6", pos));
+        pos = MoveMaker.apply(pos, uci.uciToMove("g5f6", pos));
+        pos = MoveMaker.apply(pos, uci.uciToMove("d8f6", pos));
+        pos = MoveMaker.apply(pos, uci.uciToMove("e4d5", pos));
+        pos = MoveMaker.apply(pos, uci.uciToMove("f8b4", pos));
+        pos = MoveMaker.apply(pos, uci.uciToMove("d5e6", pos));
+        pos = MoveMaker.apply(pos, uci.uciToMove("c8e6", pos));
+
+        Move expected = uci.uciToMove("g1e2", pos);
+        Move actual = san.sanToMove("Ne2", pos);
+        assertEquals(expected, actual);
+    }
 }

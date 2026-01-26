@@ -44,6 +44,10 @@ public class ConcreteGameImportService implements GameImportService {
     @Override
     public UUID importFromPgn(UUID ownerId, String pgn, String startFen, String resultTag) {
         var game = pgnService.createEmptyGameFromPGN(pgn);
+        GameResult parsedResult = parseResult(resultTag);
+        if (parsedResult != null) {
+            game.setResult(parsedResult);
+        }
         var moves = pgnService.extractMovesFromGameMainline(game);
         var movesSet = new TreeSet<>(Comparator.comparing(GameMove::getPlyIndex));
         movesSet.addAll(moves);
@@ -101,7 +105,7 @@ public class ConcreteGameImportService implements GameImportService {
         }
         var g = new Game();
         g.setMoves(moves);
-        g.setResult(resultTag != null ? GameResult.valueOf(resultTag) : null);
+        g.setResult(parseResult(resultTag));
         g.setUserId(ownerId);
         g = gameRepository.save(g);
         if (g != null) {
@@ -111,6 +115,23 @@ public class ConcreteGameImportService implements GameImportService {
             logger.error("game.import.moves failed userId=" + ownerId + " format=" + format);
         }
         return g != null ? g.getId() : null;
+    }
+
+    private static GameResult parseResult(String tag) {
+        if (tag == null) return null;
+        return switch (tag.trim()) {
+            case "1-0" -> GameResult.WHITE_WIN;
+            case "0-1" -> GameResult.BLACK_WIN;
+            case "1/2-1/2" -> GameResult.DRAW;
+            case "*" -> GameResult.UNFINISHED;
+            default -> {
+                try {
+                    yield GameResult.valueOf(tag.trim());
+                } catch (IllegalArgumentException ex) {
+                    yield null;
+                }
+            }
+        };
     }
 
     private static String stripPgnNoise(String s) {

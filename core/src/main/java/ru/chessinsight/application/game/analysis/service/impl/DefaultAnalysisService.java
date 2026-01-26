@@ -14,6 +14,7 @@ import ru.chessinsight.application.game.dto.MoveDTO;
 import ru.chessinsight.domain.chess.move.model.Move;
 import ru.chessinsight.domain.chess.move.notation.service.SanNotationService;
 import ru.chessinsight.domain.chess.move.notation.service.UciNotationService;
+import ru.chessinsight.domain.chess.move.service.MoveMaker;
 import ru.chessinsight.domain.chess.position.model.Position;
 import ru.chessinsight.domain.chess.piece.model.Color;
 import ru.chessinsight.domain.game.model.Game;
@@ -61,7 +62,7 @@ public class DefaultAnalysisService implements AnalysisService {
                 + " userId=" + game.getUserId()
                 + " moves=" + game.getMoves().size());
         var analysis = new GameAnalysis();
-        List<MoveAnalysisDTO> analyzed = getGameMovesEval(game);
+        List<MoveEval> analyzed = getGameMovesEval(game);
 
         Map<MoveCategory, List<MoveAnalysisDTO>> buckets = new EnumMap<>(MoveCategory.class);
         for (MoveCategory c : MoveCategory.values()) {
@@ -71,14 +72,14 @@ public class DefaultAnalysisService implements AnalysisService {
         double whitePenalty = 0.0, whiteWeight = 0.0;
         double blackPenalty = 0.0, blackWeight = 0.0;
 
-        for (MoveAnalysisDTO ma : analyzed) {
+        for (MoveEval entry : analyzed) {
+            MoveAnalysisDTO ma = entry.analysis();
             MoveCategory cat = classifier.classifyMove(ma);
             buckets.get(cat).add(ma);
 
-            Position pos = Position.fromFEN(ma.positionFEN());
-            Color side = pos.sideToMove();
+            Color side = (entry.move().getPlyIndex() % 2 == 1) ? Color.WHITE : Color.BLACK;
 
-            long moveNum = ma.bestMove().moveNum() != null ? ma.bestMove().moveNum() : 0L;
+            long moveNum = (long) Math.ceil(entry.move().getPlyIndex() / 2.0);
             double w = accuracy.moveWeight(moveNum);
             double p = accuracy.movePenalty(cat, moveNum);
 
@@ -120,8 +121,8 @@ public class DefaultAnalysisService implements AnalysisService {
         );
     }
 
-    private List<MoveAnalysisDTO> getGameMovesEval(Game game) {
-        List<MoveAnalysisDTO> out = new ArrayList<>();
+    private List<MoveEval> getGameMovesEval(Game game) {
+        List<MoveEval> out = new ArrayList<>();
         Set<GameMove> moves = game.getMoves();
 
         for (GameMove gm : moves) {
@@ -147,16 +148,18 @@ public class DefaultAnalysisService implements AnalysisService {
             );
             gm.setAnalysis(analysis);
 
-            out.add(analysisDto);
+            out.add(new MoveEval(gm, analysisDto));
         }
         return out;
     }
 
+    private record MoveEval(GameMove move, MoveAnalysisDTO analysis) {}
+
     @Override
     public MoveAnalysisDTO analyzeMove(MoveDTO move) {
         String uciText = move.moveUCI();
+        Position pos = Position.fromFEN(move.positionFEN());
         if (uciText == null || uciText.isBlank()) {
-            Position pos = Position.fromFEN(move.positionFEN());
             Move mv = san.sanToMove(move.moveSAN(), pos);
             uciText = uci.moveToUci(mv);
         }
@@ -171,7 +174,19 @@ public class DefaultAnalysisService implements AnalysisService {
 
         var res = engine.analyzeMove(req);
 
-        Double playedEval = (res.evalCp() != null) ? (res.evalCp() / 100.0) : (res.mateScore() != null ? Double.POSITIVE_INFINITY : 0.0);
+        Integer mateScore = res.mateScore();
+        if (mateScore == null) {
+            Move played = uci.uciToMove(uciText, pos);
+            Position after = MoveMaker.apply(pos, played);
+            var validator = new ru.chessinsight.domain.chess.move.service.MoveValidator();
+            boolean inCheck = validator.isKingInCheck(after, after.sideToMove());
+            boolean noMoves = validator.sideLegalMoves(after, after.sideToMove()).isEmpty();
+            if (inCheck && noMoves) {
+                mateScore = 0;
+            }
+        }
+
+        Double playedEval = (res.evalCp() != null) ? (res.evalCp() / 100.0) : (mateScore != null ? Double.POSITIVE_INFINITY : 0.0);
 
         Double bestEval = (res.evalCp() != null && res.cpLoss() != null)
                 ? ((res.evalCp() + res.cpLoss()) / 100.0)
@@ -189,7 +204,7 @@ public class DefaultAnalysisService implements AnalysisService {
                 bestMoveDTO,
                 bestEval,
                 playedEval,
-                res.mateScore()
+                mateScore
         );
     }
 
