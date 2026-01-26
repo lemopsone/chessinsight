@@ -74,15 +74,53 @@ services:
       - ~/.m2:/root/.m2
       - ./testData:/app/testData
   postgres:
+  postgres-master:
     image: postgres:15
+    container_name: postgres-master
     environment:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
+      READONLY_USER: ${DB_READONLY_USER}
+      READONLY_PASSWORD: ${DB_READONLY_PASSWORD}
+      REPLICATION_USER: ${DB_REPLICATION_USER}
+      REPLICATION_PASSWORD: ${DB_REPLICATION_PASSWORD}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     ports:
       - "${DB_PORT}:5432"
+    command:
+      - postgres
+      - -c
+      - wal_level=replica
+      - -c
+      - max_wal_senders=10
+      - -c
+      - max_replication_slots=10
+      - -c
+      - hot_standby=on
+    networks:
+      - chessnet
+
+  postgres-replica:
+    image: postgres:15
+    container_name: postgres-replica
+    entrypoint: ["/usr/local/bin/docker-entrypoint-replica.sh"]
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      REPLICATION_USER: ${DB_REPLICATION_USER}
+      REPLICATION_PASSWORD: ${DB_REPLICATION_PASSWORD}
+      REPLICATION_HOST: postgres-master
+      REPLICATION_PORT: 5432
+    volumes:
+      - postgres-replica-data:/var/lib/postgresql/data
+      - ./postgres/replica/docker-entrypoint-replica.sh:/usr/local/bin/docker-entrypoint-replica.sh:ro
+    depends_on:
+      - postgres-master
+    ports:
+      - "5433:5432"
     networks:
       - chessnet
 
@@ -95,6 +133,8 @@ services:
 
 volumes:
   postgres-data:
+  postgres-master-data:
+  postgres-replica-data:
   es-data:
 
 networks:
