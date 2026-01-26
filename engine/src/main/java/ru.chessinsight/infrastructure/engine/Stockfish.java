@@ -205,6 +205,12 @@ public class Stockfish extends ExecutableWrapper implements ChessEngine {
 
         Integer evalCp = afterAnalysis.scoreCp();
         Integer mateScore = afterAnalysis.scoreMate();
+        if (evalCp != null) {
+            evalCp = -evalCp;
+        }
+        if (mateScore != null) {
+            mateScore = -mateScore;
+        }
         Integer cpLoss = (pos.scoreCp() != null && evalCp != null) ? (pos.scoreCp() - evalCp) : null;
 
         String playedSan = toSanPv(Position.fromFEN(fen), Collections.singletonList(playedUci)).getFirst();
