@@ -17,13 +17,15 @@ services:
       - DB_NAME=${DB_NAME}
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
+      - ENGINE_STOCKFISH_HOST=stockfish-pool
+      - ENGINE_STOCKFISH_PORT=5555
       - ES_HOST=${ES_HOST}
       - ES_PORT=${ES_PORT}
     depends_on:
       - postgres
 #      - elasticsearch
       - redis
-      - stockfish
+      - stockfish-pool
     deploy:
       resources:
         limits:
@@ -55,12 +57,12 @@ services:
     networks:
       - chessnet
 
-  stockfish:
+  stockfish-1:
     platform: linux/amd64
     build:
       context: .
       dockerfile: Dockerfile.stockfish
-    container_name: stockfish
+    container_name: stockfish-1
     expose:
       - "5555"
     networks:
@@ -73,7 +75,63 @@ services:
     volumes:
       - ~/.m2:/root/.m2
       - ./testData:/app/testData
-  postgres:
+
+  stockfish-2:
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile.stockfish
+    container_name: stockfish-2
+    expose:
+      - "5555"
+    networks:
+      - chessnet
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 512m
+    volumes:
+      - ~/.m2:/root/.m2
+      - ./testData:/app/testData
+
+  stockfish-3:
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile.stockfish
+    container_name: stockfish-3
+    expose:
+      - "5555"
+    networks:
+      - chessnet
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 512m
+    volumes:
+      - ~/.m2:/root/.m2
+      - ./testData:/app/testData
+
+  stockfish-pool:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: stockfish-pool
+    container_name: stockfish-pool
+    volumes:
+      - ./nginx/stockfish-stream.conf:/etc/nginx/nginx.conf:ro
+      - ./monitoring/consul/stockfish-stream.ctmpl:/etc/nginx/stockfish-stream.conf.ctmpl:ro
+      - ./monitoring/consul/consul-template-stockfish.hcl:/etc/consul-template/consul-template.hcl:ro
+    depends_on:
+      - stockfish-1
+      - stockfish-2
+      - stockfish-3
+      - consul
+    networks:
+      - chessnet
+
   postgres-master:
     image: postgres:15
     container_name: postgres-master
@@ -86,7 +144,8 @@ services:
       REPLICATION_USER: ${DB_REPLICATION_USER}
       REPLICATION_PASSWORD: ${DB_REPLICATION_PASSWORD}
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-master-data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d
     ports:
       - "${DB_PORT}:5432"
     command:
