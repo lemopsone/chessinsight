@@ -7,4 +7,6 @@ public interface RefreshTokenService {
     boolean tokenValid(String token);
     UUID getUserIdFromToken(String token);
     void invalidateToken(String token);
+    String getTokenForUser(UUID userId);
+    void invalidateUserTokens(UUID userId);
 }

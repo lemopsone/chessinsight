@@ -48,7 +48,7 @@ final public class JWTTokenProvider {
             Jwts.parserBuilder()
                     .setSigningKey(jwtSecretKey)
                     .build()
-                    .parseClaimsJwt(token);
+                    .parseClaimsJws(token);
             return true;
         } catch (JwtException e) {
             return false;
@@ -59,7 +59,7 @@ final public class JWTTokenProvider {
         Claims claims = Jwts.parserBuilder()
                 .setSigningKey(jwtSecretKey)
                 .build()
-                .parseClaimsJwt(token)
+                .parseClaimsJws(token)
                 .getBody();
 
         return UUID.fromString(claims.getSubject());
