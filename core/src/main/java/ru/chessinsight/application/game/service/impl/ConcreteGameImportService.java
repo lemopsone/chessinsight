@@ -1,6 +1,7 @@
 package ru.chessinsight.application.game.service.impl;
 
 import org.springframework.stereotype.Service;
+import ru.chessinsight.application.common.logger.service.Logger;
 import ru.chessinsight.application.exception.ApplicationException;
 import ru.chessinsight.application.game.service.GameImportService;
 import ru.chessinsight.domain.chess.move.notation.service.SanNotationService;
@@ -30,9 +31,11 @@ public class ConcreteGameImportService implements GameImportService {
     private final UciNotationService uciNotationService;
     private final SanNotationService sanNotationService;
     private final GameRepository gameRepository;
+    private final Logger logger;
 
-    public ConcreteGameImportService(GameRepository gameRepository) {
+    public ConcreteGameImportService(GameRepository gameRepository, Logger logger) {
         this.gameRepository = gameRepository;
+        this.logger = logger;
         this.pgnService = new PgnService();
         this.uciNotationService = new UciNotationService();
         this.sanNotationService = new SanNotationService();
@@ -48,6 +51,12 @@ public class ConcreteGameImportService implements GameImportService {
         game.setUserId(ownerId);
         game = gameRepository.save(game);
 
+        if (game != null) {
+            logger.info("game.import.pgn success userId=" + ownerId + " gameId=" + game.getId()
+                    + " moves=" + movesSet.size());
+        } else {
+            logger.error("game.import.pgn failed userId=" + ownerId);
+        }
         return game != null ? game.getId() : null;
     }
 
@@ -86,13 +95,21 @@ public class ConcreteGameImportService implements GameImportService {
                     moves.add(m);
                 }
                 break;
-            default: throw new ApplicationException("couldn't parse game format " + format);
+            default:
+                logger.warning("game.import.moves rejected format=" + format);
+                throw new ApplicationException("couldn't parse game format " + format);
         }
         var g = new Game();
         g.setMoves(moves);
         g.setResult(resultTag != null ? GameResult.valueOf(resultTag) : null);
         g.setUserId(ownerId);
         g = gameRepository.save(g);
+        if (g != null) {
+            logger.info("game.import.moves success userId=" + ownerId + " gameId=" + g.getId()
+                    + " format=" + format + " moves=" + moves.size());
+        } else {
+            logger.error("game.import.moves failed userId=" + ownerId + " format=" + format);
+        }
         return g != null ? g.getId() : null;
     }
 

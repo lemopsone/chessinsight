@@ -3,8 +3,10 @@ package ru.chessinsight.infrastructure.web.mapper;
 import org.springframework.stereotype.Component;
 import ru.chessinsight.application.game.training.dto.TrainingMoveRequest;
 import ru.chessinsight.application.game.training.dto.TrainingMoveResponse;
+import ru.chessinsight.domain.common.pagination.Page;
 import ru.chessinsight.domain.game.training.model.TrainingScenario;
 import ru.chessinsight.infrastructure.web.dto.TrainingMoveStatus;
+import ru.chessinsight.infrastructure.web.dto.PageResponseTrainingScenarioDTO;
 import ru.chessinsight.infrastructure.web.dto.TrainingScenarioDTO;
 
 import java.util.List;
@@ -35,15 +37,28 @@ public class TrainingApiMapper {
         return list.stream().map(this::toScenarioDto).collect(Collectors.toList());
     }
 
+    public PageResponseTrainingScenarioDTO toPageResponse(Page<TrainingScenario> page) {
+        PageResponseTrainingScenarioDTO response = new PageResponseTrainingScenarioDTO();
+        response.setContent(page.content().stream().map(this::toScenarioDto).toList());
+        response.setPage(page.page());
+        response.setSize(page.size());
+        response.setTotalElements(page.totalElements());
+        response.setTotalPages(page.totalPages());
+        response.setHasNext(page.hasNext());
+        response.setHasPrevious(page.hasPrevious());
+        return response;
+    }
+
     public TrainingMoveRequest toAppRequest(
             ru.chessinsight.infrastructure.web.dto.TrainingMoveRequest dto,
             UUID userId
     ) {
+        boolean isDemo = dto.getIsDemo() != null && dto.getIsDemo();
         return new TrainingMoveRequest(
                 dto.getScenarioId(),
                 dto.getCursor(),
                 dto.getMoveUCI(),
-                dto.getIsDemo()
+                isDemo
         );
     }
 

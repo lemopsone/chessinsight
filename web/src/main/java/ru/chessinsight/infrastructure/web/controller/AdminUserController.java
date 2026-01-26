@@ -10,16 +10,16 @@ import ru.chessinsight.domain.common.pagination.PageParams;
 import ru.chessinsight.domain.user.model.Role;
 import ru.chessinsight.domain.user.model.User;
 import ru.chessinsight.infrastructure.web.api.AdminApi;
+import ru.chessinsight.infrastructure.web.dto.AdminCreateUserRequest;
 import ru.chessinsight.infrastructure.web.dto.AdminPatchUserRequest;
 import ru.chessinsight.infrastructure.web.dto.AdminUserDTO;
-import ru.chessinsight.infrastructure.web.dto.PageResponse;
+import ru.chessinsight.infrastructure.web.dto.PageResponseAdminUserDTO;
 import ru.chessinsight.infrastructure.web.dto.UserRole;
 import ru.chessinsight.infrastructure.web.mapper.UserApiMapper;
 
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @RestController
 public class AdminUserController implements AdminApi, ApiV1Controller {
@@ -32,8 +32,9 @@ public class AdminUserController implements AdminApi, ApiV1Controller {
         this.userApiMapper = userApiMapper;
     }
 
+    @Override
     @GetMapping("/admin/users")
-    public ResponseEntity<PageResponse<AdminUserDTO>> listUsers(
+    public ResponseEntity<PageResponseAdminUserDTO> adminUsersGet(
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size,
             @RequestParam(required = false) Boolean active,
@@ -42,31 +43,16 @@ public class AdminUserController implements AdminApi, ApiV1Controller {
         int p = page != null ? page : 0;
         int s = size != null ? size : 20;
 
-        Set<Role> roleFilter = (roles == null) ? null :
-                roles.stream().map(userApiMapper::toDomainRole).collect(Collectors.toSet());
+        Set<Role> roleFilter = userApiMapper.toDomainRoles(roles);
 
         var resultPage = adminUserService.listUsers(active, roleFilter, new PageParams(p, s));
-
-        List<AdminUserDTO> content = resultPage.content().stream()
-                .map(userApiMapper::toAdminUserDto)
-                .toList();
-
-        PageResponse<AdminUserDTO> response = new PageResponse<>(
-                content,
-                resultPage.page(),
-                resultPage.size(),
-                resultPage.totalElements(),
-                resultPage.totalPages(),
-                resultPage.hasNext(),
-                resultPage.hasPrevious()
-        );
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(userApiMapper.toAdminUserPageResponse(resultPage));
     }
 
+    @Override
     @PostMapping("/admin/users")
-    public ResponseEntity<AdminUserDTO> createUser(
-            @Valid @RequestBody ru.chessinsight.infrastructure.web.dto.SignUpDTO body
+    public ResponseEntity<AdminUserDTO> adminCreateUser(
+            @Valid @RequestBody AdminCreateUserRequest body
     ) {
         SignUpDTO signUp = new SignUpDTO(
                 body.getLogin(),
@@ -74,7 +60,9 @@ public class AdminUserController implements AdminApi, ApiV1Controller {
                 body.getPassword()
         );
 
-        Set<Role> roles = Set.of(Role.ROLE_USER);
+        Set<Role> roles = (body.getRoles() == null || body.getRoles().isEmpty())
+                ? Set.of(Role.ROLE_USER)
+                : userApiMapper.toDomainRoles(body.getRoles());
 
         User user = adminUserService.createUser(signUp, roles, null);
         return ResponseEntity
@@ -82,14 +70,16 @@ public class AdminUserController implements AdminApi, ApiV1Controller {
                 .body(userApiMapper.toAdminUserDto(user));
     }
 
+    @Override
     @GetMapping("/admin/users/{userId}")
-    public ResponseEntity<AdminUserDTO> getUser(@PathVariable UUID userId) {
+    public ResponseEntity<AdminUserDTO> adminGetUser(@PathVariable UUID userId) {
         User user = adminUserService.getUser(userId);
         return ResponseEntity.ok(userApiMapper.toAdminUserDto(user));
     }
 
+    @Override
     @PatchMapping("/admin/users/{userId}")
-    public ResponseEntity<AdminUserDTO> patchUser(
+    public ResponseEntity<AdminUserDTO> adminPatchUser(
             @PathVariable UUID userId,
             @Valid @RequestBody AdminPatchUserRequest patch
     ) {
@@ -107,8 +97,9 @@ public class AdminUserController implements AdminApi, ApiV1Controller {
         return ResponseEntity.ok(userApiMapper.toAdminUserDto(user));
     }
 
+    @Override
     @DeleteMapping("/admin/users/{userId}")
-    public ResponseEntity<Void> deactivateUser(@PathVariable UUID userId) {
+    public ResponseEntity<Void> adminDeactivateUser(@PathVariable UUID userId) {
         adminUserService.deactivateUser(userId);
         return ResponseEntity.noContent().build();
     }

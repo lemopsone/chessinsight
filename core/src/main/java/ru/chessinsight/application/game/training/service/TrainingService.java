@@ -17,6 +17,7 @@ public interface TrainingService {
     TrainingMoveResponse submitMove(UUID userId, TrainingMoveRequest request);
     List<TrainingScenario> createScenariosFromAnalysis(GameAnalysisDTO dto);
     List<TrainingScenario> getUserScenarios(UUID userId, Boolean completed);
+    Page<TrainingScenario> getUserScenariosPage(UUID userId, Boolean completed);
     Page<TrainingScenario> getUserScenarios(UUID userId, Boolean completed, PageParams params);
     Optional<TrainingScenario> getScenarioById(UUID scenarioId);
 }

@@ -1,6 +1,7 @@
 package ru.chessinsight.application.statistics.service.impl;
 
 import org.springframework.stereotype.Service;
+import ru.chessinsight.application.common.logger.service.Logger;
 import ru.chessinsight.application.game.analysis.service.AnalysisService;
 import ru.chessinsight.application.game.dto.GameAnalysisDTO;
 import ru.chessinsight.application.statistics.exception.UserNotFoundException;
@@ -19,13 +20,16 @@ public class NaiveStatisticsService implements StatisticsService {
     private final UserRepository userRepository;
     private final GameRepository gameRepository;
     private final AnalysisService analysisService;
+    private final Logger logger;
 
     public NaiveStatisticsService(UserRepository userRepository,
                                   GameRepository gameRepository,
-                                  AnalysisService analysisService) {
+                                  AnalysisService analysisService,
+                                  Logger logger) {
         this.userRepository = Objects.requireNonNull(userRepository);
         this.gameRepository = Objects.requireNonNull(gameRepository);
         this.analysisService = Objects.requireNonNull(analysisService);
+        this.logger = logger;
     }
 
     @Override
@@ -33,6 +37,7 @@ public class NaiveStatisticsService implements StatisticsService {
         userRepository.findOneById(userId).orElseThrow(() -> new UserNotFoundException(userId.toString()));
 
         List<Game> games = gameRepository.findAllByUserId(userId);
+        logger.info("stats.start userId=" + userId + " games=" + games.size());
 
         double sumAll = 0.0;
         int cntAll = 0;
@@ -70,6 +75,10 @@ public class NaiveStatisticsService implements StatisticsService {
         double accWhite = cntWhite > 0 ? sumWhite / cntWhite : 0.0;
         double accBlack = cntBlack > 0 ? sumBlack / cntBlack : 0.0;
 
+        logger.info("stats.complete userId=" + userId
+                + " accuracyAll=" + accAll
+                + " accuracyWhite=" + accWhite
+                + " accuracyBlack=" + accBlack);
         return new UserStatistics(accAll, accWhite, accBlack);
     }
 
