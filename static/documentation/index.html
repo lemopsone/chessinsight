@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Documentation</title>
+    <style>
+      body {
+        margin: 32px;
+        font-family: "Trebuchet MS", "Verdana", sans-serif;
+        color: #1f1b16;
+        line-height: 1.5;
+      }
+      img {
+        max-width: 100%;
+        height: auto;
+      }
+      pre {
+        padding: 12px;
+        background: #f3f3f3;
+        overflow: auto;
+      }
+      code {
+        background: #f3f3f3;
+        padding: 0 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Documentation</h1>
+    <div id="content">Loading...</div>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+      (function () {
+        const content = document.getElementById("content");
+
+        marked.setOptions({ baseUrl: "/" });
+
+        fetch("/documentation/README.md")
+          .then((res) => res.text())
+          .then((text) => {
+            content.innerHTML = marked.parse(text);
+          })
+          .catch(() => {
+            content.textContent = "Failed to load documentation.";
+          });
+      })();
+    </script>
+  </body>
+</html>

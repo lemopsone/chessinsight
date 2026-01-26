@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ChessInsight</title>
+    <style>
+      body {
+        margin: 32px;
+        font-family: "Trebuchet MS", "Verdana", sans-serif;
+        color: #1f1b16;
+        line-height: 1.5;
+      }
+      h1 {
+        margin-top: 0;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(800px, 1fr));
+        gap: 16px;
+        margin-top: 24px;
+      }
+      figure {
+        margin: 0;
+      }
+      img {
+        width: 100%;
+        height: auto;
+        border: 1px solid #d9d0c6;
+      }
+      nav ul {
+        padding-left: 18px;
+        margin: 0 0 24px;
+      }
+      nav li {
+        margin: 6px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>ChessInsight</h1>
+    <p>однажды тут будет SPA</p>
+    <nav>
+      <ul>
+        <li><a href="/api/v1/">API v1</a></li>
+        <li><a href="/documentation">Документация</a></li>
+        <li><a href="/management/">Управление</a></li>
+        <li><a href="/legacy/">Легаси (CLI-клиент)</a></li>
+        <li><a href="/admin/">Админ-панель</a></li>
+        <li><a href="/status">NGINX статус</a></li>
+      </ul>
+    </nav>
+    <section class="grid">
+      <figure>
+        <img src="/img/screens.png" alt="Screens preview" />
+      </figure>
+      <figure>
+        <img src="/img/usecase.svg" alt="Use case diagram" />
+      </figure>
+      <figure>
+        <img src="/img/bpmn.svg" alt="BPMN diagram" />
+      </figure>
+      <figure>
+        <img src="/img/bpmn2.svg" alt="Training BPMN diagram" />
+      </figure>
+      <figure>
+        <img src="/img/er.svg" alt="ER diagram" />
+      </figure>
+      <figure>
+        <img src="/img/fc.svg" alt="Component diagram" />
+      </figure>
+      <figure>
+        <img src="/img/db_diagram.png" alt="Database diagram" />
+      </figure>
+    </section>
+  </body>
+</html>

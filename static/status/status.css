@@ -1,0 +1,71 @@
+body {
+  margin: 24px;
+  font-family: "Trebuchet MS", "Verdana", sans-serif;
+  color: #1f1b16;
+}
+
+.wrap {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  margin-top: 16px;
+}
+
+.card {
+  border: 1px solid #d9d0c6;
+  padding: 16px;
+}
+
+.value {
+  font-size: 32px;
+}
+
+.split {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.meter {
+  display: flex;
+  height: 6px;
+  background: #eee6dc;
+  margin-top: 12px;
+}
+
+.bar {
+  height: 100%;
+  width: 0%;
+}
+
+.bar-reading {
+  background: #2a6fc0;
+}
+
+.bar-writing {
+  background: #c04b2a;
+}
+
+.bar-waiting {
+  background: #2aa36b;
+}
+
+.footer {
+  margin-top: 20px;
+  display: flex;
+  gap: 12px;
+  font-size: 14px;
+}
