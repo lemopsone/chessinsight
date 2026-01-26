@@ -5,6 +5,7 @@ import ru.chessinsight.application.admin.service.AdminUserService;
 import ru.chessinsight.application.auth.dto.SignUpDTO;
 import ru.chessinsight.application.auth.exception.UserExistsException;
 import ru.chessinsight.application.auth.service.AuthService;
+import ru.chessinsight.application.common.logger.service.Logger;
 import ru.chessinsight.application.statistics.exception.UserNotFoundException;
 import ru.chessinsight.domain.common.pagination.Page;
 import ru.chessinsight.domain.common.pagination.PageParams;
@@ -21,11 +22,14 @@ public class DefaultAdminUserService implements AdminUserService {
 
     private final UserRepository userRepository;
     private final AuthService authService;
+    private final Logger logger;
 
     public DefaultAdminUserService(UserRepository userRepository,
-                                   AuthService authService) {
+                                   AuthService authService,
+                                   Logger logger) {
         this.userRepository = userRepository;
         this.authService = authService;
+        this.logger = logger;
     }
 
     @Override
@@ -44,6 +48,7 @@ public class DefaultAdminUserService implements AdminUserService {
         try {
             authService.signUp(signUp);
         } catch (UserExistsException e) {
+            logger.warning("admin.user.create rejected login=" + signUp.login());
             throw new UserExistsException("User already exists");
         }
 
@@ -57,7 +62,9 @@ public class DefaultAdminUserService implements AdminUserService {
             user.setActive(active);
         }
 
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        logger.info("admin.user.create userId=" + saved.getId());
+        return saved;
     }
 
     @Override
@@ -77,7 +84,9 @@ public class DefaultAdminUserService implements AdminUserService {
             user.setActive(active);
         }
 
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        logger.info("admin.user.patch userId=" + id);
+        return saved;
     }
 
     @Override
@@ -85,5 +94,6 @@ public class DefaultAdminUserService implements AdminUserService {
         User user = getUser(id);
         user.setActive(false);
         userRepository.save(user);
+        logger.info("admin.user.deactivate userId=" + id);
     }
 }

@@ -1,26 +1,20 @@
 package ru.chessinsight.infrastructure.web.controller;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.parameters.P;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
+import jakarta.validation.Valid;
 import ru.chessinsight.application.auth.service.AuthService;
 import ru.chessinsight.application.game.training.dto.TrainingMoveRequest;
 import ru.chessinsight.application.game.training.dto.TrainingMoveResponse;
 import ru.chessinsight.application.game.training.service.TrainingService;
-import ru.chessinsight.domain.common.pagination.Page;
-import ru.chessinsight.domain.common.pagination.PageParams;
-import ru.chessinsight.domain.game.training.model.TrainingScenario;
+import ru.chessinsight.application.game.training.service.exception.ScenarioNotFoundException;
 import ru.chessinsight.infrastructure.web.api.TrainingApi;
-import ru.chessinsight.infrastructure.web.dto.PageResponse;
+import ru.chessinsight.infrastructure.web.dto.PageResponseTrainingScenarioDTO;
 import ru.chessinsight.infrastructure.web.dto.TrainingScenarioDTO;
 import ru.chessinsight.infrastructure.web.mapper.TrainingApiMapper;
 
-import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @RestController
 public class TrainingController implements TrainingApi, ApiV1Controller {
@@ -35,49 +29,31 @@ public class TrainingController implements TrainingApi, ApiV1Controller {
         this.trainingApiMapper = trainingApiMapper;
     }
 
+    @Override
     @GetMapping("/training/scenarios")
-    public ResponseEntity<PageResponse<TrainingScenarioDTO>> listScenarios(
-            @RequestParam(required = false) Boolean completed,
-            @RequestParam(required = false) Integer page,
-            @RequestParam(required = false) Integer size
-
+    public ResponseEntity<PageResponseTrainingScenarioDTO> listMyTrainingScenarios(
+            @RequestParam(required = false) Boolean completed
     ) {
-        int p = page != null ? page : 0;
-        int s = size != null ? size : 20;
-
         UUID userId = authService.getCurrentUserId()
                 .orElseThrow(() -> new AccessDeniedException("Not authenticated"));
 
-        Page<TrainingScenario> scenarios = trainingService.getUserScenarios(userId, completed, new PageParams(p, s));
-        var content = scenarios.content().stream()
-                .map(trainingApiMapper::toScenarioDto)
-                .toList();
+        var scenarios = trainingService.getUserScenariosPage(userId, completed);
 
-        PageResponse<TrainingScenarioDTO> response = new PageResponse<>(
-                content,
-                scenarios.page(),
-                scenarios.size(),
-                scenarios.totalElements(),
-                scenarios.totalPages(),
-                scenarios.hasNext(),
-                scenarios.hasPrevious()
-        );
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(trainingApiMapper.toPageResponse(scenarios));
     }
 
+    @Override
     @GetMapping("/training/scenarios/{scenarioId}")
-    public ResponseEntity<TrainingScenarioDTO> getScenario(@PathVariable UUID scenarioId) {
-        TrainingScenario scenario = trainingService.getScenarioById(scenarioId)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Scenario not found"
-                ));
+    public ResponseEntity<TrainingScenarioDTO> getTrainingScenario(@PathVariable UUID scenarioId) {
+        var scenario = trainingService.getScenarioById(scenarioId)
+                .orElseThrow(() -> new ScenarioNotFoundException("Scenario not found"));
         return ResponseEntity.ok(trainingApiMapper.toScenarioDto(scenario));
     }
 
+    @Override
     @PostMapping("/training/move")
-    public ResponseEntity<ru.chessinsight.infrastructure.web.dto.TrainingMoveResponse> submitMove(
-            @RequestBody ru.chessinsight.infrastructure.web.dto.TrainingMoveRequest body
+    public ResponseEntity<ru.chessinsight.infrastructure.web.dto.TrainingMoveResponse> submitTrainingMove(
+            @Valid @RequestBody ru.chessinsight.infrastructure.web.dto.TrainingMoveRequest body
     ) {
         UUID userId = authService.getCurrentUserId()
                 .orElseThrow(() -> new AccessDeniedException("Not authenticated"));

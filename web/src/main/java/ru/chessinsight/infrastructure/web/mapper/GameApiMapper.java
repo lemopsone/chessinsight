@@ -2,12 +2,19 @@ package ru.chessinsight.infrastructure.web.mapper;
 
 import org.springframework.stereotype.Component;
 import ru.chessinsight.application.game.dto.GameMetadataDTO;
+import ru.chessinsight.application.game.dto.GameMetadataPatchDTO;
+import ru.chessinsight.application.game.dto.GameSearchCriteria;
+import ru.chessinsight.domain.common.pagination.Page;
 import ru.chessinsight.domain.game.model.Game;
 import ru.chessinsight.domain.game.model.GameMove;
 import ru.chessinsight.domain.game.model.GameResult;
 import ru.chessinsight.infrastructure.web.dto.GameDTO;
 import ru.chessinsight.infrastructure.web.dto.GameMoveDTO;
+import ru.chessinsight.infrastructure.web.dto.PageResponseGameDTO;
+import ru.chessinsight.infrastructure.web.dto.PatchGameRequest;
+import ru.chessinsight.infrastructure.web.dto.ReplaceGameRequest;
 
+import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -56,6 +63,32 @@ public class GameApiMapper {
         return dto;
     }
 
+    public GameSearchCriteria toSearchCriteria(
+            ru.chessinsight.infrastructure.web.dto.GameResult result,
+            LocalDate dateFrom,
+            LocalDate dateTo,
+            Boolean analyzed
+    ) {
+        return new GameSearchCriteria(
+                toDomainResult(result),
+                dateFrom,
+                dateTo,
+                analyzed
+        );
+    }
+
+    public PageResponseGameDTO toPageResponse(Page<Game> page) {
+        PageResponseGameDTO response = new PageResponseGameDTO();
+        response.setContent(page.content().stream().map(this::toGameDto).toList());
+        response.setPage(page.page());
+        response.setSize(page.size());
+        response.setTotalElements(page.totalElements());
+        response.setTotalPages(page.totalPages());
+        response.setHasNext(page.hasNext());
+        response.setHasPrevious(page.hasPrevious());
+        return response;
+    }
+
     public ru.chessinsight.domain.game.model.GameResult toDomainResult(
             ru.chessinsight.infrastructure.web.dto.GameResult result
     ) {
@@ -76,4 +109,27 @@ public class GameApiMapper {
                 toDomainResult(gameDTO.getResult())
         );
     }
+
+    public GameMetadataDTO toMetaDto(ReplaceGameRequest request) {
+        return new GameMetadataDTO(
+                request.getEvent(),
+                request.getSite(),
+                request.getDate(),
+                request.getRound(),
+                request.getWhiteName(),
+                request.getBlackName(),
+                toDomainResult(request.getResult())
+        );
+    }
+
+    public GameMetadataPatchDTO toPatchDto(PatchGameRequest request) {
+        return new GameMetadataPatchDTO(
+                request.getEvent(),
+                request.getSite(),
+                request.getDate(),
+                request.getRound(),
+                toDomainResult(request.getResult())
+        );
+    }
+
 }

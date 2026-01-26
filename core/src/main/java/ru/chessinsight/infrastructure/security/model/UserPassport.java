@@ -26,6 +26,10 @@ public class UserPassport implements UserDetails {
         this.password = user.getPasswordHash();
         this.roles = user.getRoles();
     }
+
+    public String getId() {
+        return id;
+    }
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return roles.stream()

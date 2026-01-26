@@ -32,6 +32,29 @@ services:
     networks:
       - chessnet
 
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: gateway
+    container_name: gateway
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+      - adminer
+    networks:
+      - chessnet
+
+  adminer:
+    image: adminer:4
+    container_name: adminer
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    networks:
+      - chessnet
+
   stockfish:
     platform: linux/amd64
     build:

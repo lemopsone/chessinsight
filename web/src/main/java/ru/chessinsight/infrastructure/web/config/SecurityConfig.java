@@ -1,24 +1,32 @@
 package ru.chessinsight.infrastructure.web.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import ru.chessinsight.infrastructure.security.JWTAuthenticationFilter;
+import ru.chessinsight.infrastructure.web.dto.ProblemDetails;
+import ru.chessinsight.infrastructure.web.exception.ProblemDetailsFactory;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
     private final JWTAuthenticationFilter jwtAuthenticationFilter;
+    private final ObjectMapper objectMapper;
 
-    public SecurityConfig(JWTAuthenticationFilter filter) {
+    public SecurityConfig(JWTAuthenticationFilter filter, ObjectMapper objectMapper) {
         this.jwtAuthenticationFilter = filter;
+        this.objectMapper = objectMapper;
     }
 
     @Bean
@@ -26,6 +34,9 @@ public class SecurityConfig {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(authenticationEntryPoint())
+                        .accessDeniedHandler(accessDeniedHandler()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/v1/swagger-ui.html",
@@ -33,12 +44,45 @@ public class SecurityConfig {
                                 "/v1/openapi.yaml",
                                 "/v1/api-docs/**"
                             ).permitAll()
-                        .requestMatchers("/v1/auth/**").permitAll()
+                        .requestMatchers(
+                                "/v1/auth/signup",
+                                "/v1/auth/signin",
+                                "/v1/auth/refresh",
+                                "/v1/auth/signout"
+                        ).permitAll()
                         .requestMatchers("/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
 
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
+    }
+
+    @Bean
+    public AuthenticationEntryPoint authenticationEntryPoint() {
+        return (request, response, authException) -> {
+            ProblemDetails details = ProblemDetailsFactory.create(
+                    org.springframework.http.HttpStatus.UNAUTHORIZED,
+                    "Unauthorized",
+                    request.getRequestURI()
+            );
+            response.setStatus(org.springframework.http.HttpStatus.UNAUTHORIZED.value());
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            objectMapper.writeValue(response.getOutputStream(), details);
+        };
+    }
+
+    @Bean
+    public AccessDeniedHandler accessDeniedHandler() {
+        return (request, response, accessDeniedException) -> {
+            ProblemDetails details = ProblemDetailsFactory.create(
+                    org.springframework.http.HttpStatus.FORBIDDEN,
+                    "Forbidden",
+                    request.getRequestURI()
+            );
+            response.setStatus(org.springframework.http.HttpStatus.FORBIDDEN.value());
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            objectMapper.writeValue(response.getOutputStream(), details);
+        };
     }
 }

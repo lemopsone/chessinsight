@@ -2,6 +2,7 @@ package ru.chessinsight.application.game.training.service.impl;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.chessinsight.application.common.logger.service.Logger;
 import ru.chessinsight.application.game.analysis.engine.ChessEngine;
 import ru.chessinsight.application.game.analysis.engine.dto.EngineAnalysisRequest;
 import ru.chessinsight.application.game.analysis.engine.dto.EnginePositionAnalysis;
@@ -10,7 +11,9 @@ import ru.chessinsight.application.game.dto.MoveAnalysisDTO;
 import ru.chessinsight.application.game.training.dto.TrainingMoveRequest;
 import ru.chessinsight.application.game.training.dto.TrainingMoveResponse;
 import ru.chessinsight.application.game.training.service.TrainingService;
+import ru.chessinsight.application.game.training.service.exception.ScenarioAccessException;
 import ru.chessinsight.application.game.training.service.exception.ScenarioCreationException;
+import ru.chessinsight.application.game.training.service.exception.ScenarioNotFoundException;
 import ru.chessinsight.domain.chess.move.notation.service.UciNotationService;
 import ru.chessinsight.domain.chess.move.service.MoveMaker;
 import ru.chessinsight.domain.chess.position.model.Position;
@@ -19,6 +22,7 @@ import ru.chessinsight.domain.common.pagination.PageParams;
 import ru.chessinsight.domain.game.training.model.TrainingScenario;
 import ru.chessinsight.domain.game.training.repository.TrainingScenarioRepository;
 
+import java.time.OffsetDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -29,16 +33,19 @@ public class DefaultTrainingService implements TrainingService {
     private final TrainingScenarioRepository scenarioRepository;
     private final UciNotationService uciNotationService;
     private final ChessEngine engine;
+    private final Logger logger;
 
     private static final int DEFAULT_DEPTH = 8;
     private static final int DEFAULT_MULTIPV = 3;
     private static final int DEFAULT_PV_LIMIT = 5;
 
     public DefaultTrainingService(TrainingScenarioRepository scenarioRepository,
-                                  ChessEngine engine) {
+                                  ChessEngine engine,
+                                  Logger logger) {
         this.scenarioRepository = scenarioRepository;
         this.uciNotationService = new UciNotationService();
         this.engine = engine;
+        this.logger = logger;
     }
 
     @Override
@@ -61,6 +68,9 @@ public class DefaultTrainingService implements TrainingService {
                 .map(scenarioRepository::save)
                 .forEach(created::add);
 
+        logger.info("training.scenarios.created userId=" + dto.userId()
+                + " gameId=" + dto.gameId()
+                + " count=" + created.size());
         return created;
     }
 
@@ -101,7 +111,10 @@ public class DefaultTrainingService implements TrainingService {
                 String prompt = "Find the best continuation for the side to move.";
                 s.setPrompt(prompt);
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ex) {
+            logger.warning("training.scenario.pv.failed gameId=" + game.gameId()
+                    + " reason=" + ex.getClass().getSimpleName());
+        }
 
         return s;
     }
@@ -109,6 +122,11 @@ public class DefaultTrainingService implements TrainingService {
     @Override
     public List<TrainingScenario> getUserScenarios(UUID userId, Boolean completed) {
         return scenarioRepository.findAllByCompletionForUser(userId, completed);
+    }
+
+    @Override
+    public Page<TrainingScenario> getUserScenariosPage(UUID userId, Boolean completed) {
+        return getUserScenarios(userId, completed, new PageParams(0, 20));
     }
 
     @Override
@@ -124,14 +142,21 @@ public class DefaultTrainingService implements TrainingService {
     @Override
     @Transactional
     public TrainingMoveResponse submitMove(UUID userId, TrainingMoveRequest cmd) {
-        TrainingScenario s = scenarioRepository.findOneById(cmd.scenarioId())
-                .orElseThrow(() -> new ScenarioCreationException("Scenario not found"));
+        Optional<TrainingScenario> scenario = scenarioRepository.findOneById(cmd.scenarioId());
+        if (scenario.isEmpty()) {
+            logger.warning("training.submit.not_found scenarioId=" + cmd.scenarioId());
+            throw new ScenarioNotFoundException("Scenario not found");
+        }
+        TrainingScenario s = scenario.get();
 
         if (s.getUserId() != null && !cmd.isDemo() && !s.getUserId().equals(userId)) {
-            throw new ScenarioCreationException("Scenario does not belong to user");
+            logger.warning("training.submit.forbidden scenarioId=" + cmd.scenarioId()
+                    + " userId=" + userId);
+            throw new ScenarioAccessException("Scenario does not belong to user");
         }
 
         if (s.isCompleted()) {
+            logger.info("training.submit.completed scenarioId=" + cmd.scenarioId());
             return new TrainingMoveResponse(
                     TrainingMoveResponse.Status.COMPLETED,
                     "Scenario already completed.",
@@ -141,6 +166,7 @@ public class DefaultTrainingService implements TrainingService {
 
         final List<String> pv = splitMovesUci(s.getPvUci());
         if (pv.isEmpty()) {
+            logger.warning("training.submit.missing_pv scenarioId=" + cmd.scenarioId());
             return new TrainingMoveResponse(TrainingMoveResponse.Status.INCORRECT,
                     "Scenario has no PV configured.",
                     null, null, cmd.cursor(), false, null, null);
@@ -150,7 +176,9 @@ public class DefaultTrainingService implements TrainingService {
 
         if (cursor >= pv.size()) {
             s.setCompleted(true);
+            s.setCompletedAt(OffsetDateTime.now());
             scenarioRepository.save(s);
+            logger.info("training.submit.completed scenarioId=" + cmd.scenarioId());
             return new TrainingMoveResponse(
                     TrainingMoveResponse.Status.COMPLETED,
                     "Scenario completed.",
@@ -179,7 +207,9 @@ public class DefaultTrainingService implements TrainingService {
             boolean nowCompleted = (cursor >= pv.size());
             if (nowCompleted && !cmd.isDemo()) {
                 s.setCompleted(true);
+                s.setCompletedAt(OffsetDateTime.now());
                 scenarioRepository.save(s);
+                logger.info("training.submit.completed scenarioId=" + cmd.scenarioId());
             }
 
             return new TrainingMoveResponse(

@@ -108,6 +108,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserTokenDTO'
+        '400':
+          description: Некорректные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '401':
           description: Невалидный или истекший refresh-токен
           content:
@@ -133,6 +139,12 @@ paths:
       responses:
         '204':
           description: Успешный выход
+        '400':
+          description: Некорректные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '401':
           description: Не авторизован
           content:
@@ -143,7 +155,7 @@ paths:
   /auth/me:
     get:
       tags: [Users]
-      summary: Информация о текущем пользователе (через auth)
+      summary: Информация о текущем пользователе 
       operationId: getCurrentUserAuth
       security:
         - bearerAuth: []
@@ -184,7 +196,6 @@ paths:
     patch:
       tags: [Users]
       summary: Частичное обновление профиля
-      description: Пример частичного UPDATE (PATCH) для пользователя.
       operationId: patchCurrentUser
       security:
         - bearerAuth: []
@@ -289,7 +300,7 @@ paths:
     post:
       tags: [Games]
       summary: Импорт партии из PGN
-      description: Создание партии через PGN-текст, используется GameImportService.
+      description: Создание партии через PGN-текст
       operationId: importGameFromPgn
       security:
         - bearerAuth: []
@@ -410,7 +421,7 @@ paths:
     patch:
       tags: [Games]
       summary: Частичное обновление метаданных партии
-      description: Частичный UPDATE метаданных партии (пример частичного обновления ресурса).
+      description: Частичный UPDATE метаданных партии.
       operationId: patchGame
       security:
         - bearerAuth: []
@@ -484,7 +495,7 @@ paths:
     post:
       tags: [Analysis]
       summary: Проанализировать партию
-      description: Синхронный анализ партии с использованием AnalysisService.
+      description: Синхронный анализ партии.
       operationId: analyzeGame
       security:
         - bearerAuth: []
@@ -536,6 +547,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MoveAnalysisDTO'
+        '400':
+          description: Некорректные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '401':
           description: Не авторизован
           content:
@@ -625,6 +642,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TrainingMoveResponse'
+        '400':
+          description: Некорректные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '401':
           description: Не авторизован
           content:
@@ -640,7 +663,8 @@ paths:
 
   /admin/users:
     get:
-      summary: "Список пользователей"
+      tags: [Admin]
+      summary: "Список пользователей (админ)"
       parameters:
         - in: query
           name: page
@@ -1142,7 +1166,7 @@ components:
 
     TrainingMoveRequest:
       type: object
-      required: [scenarioId, cursor, moveUCI, isDemo]
+      required: [scenarioId, cursor, moveUCI]
       properties:
         scenarioId:
           type: string
@@ -1153,6 +1177,7 @@ components:
           type: string
         isDemo:
           type: boolean
+          default: false
 
     TrainingMoveResponse:
       type: object

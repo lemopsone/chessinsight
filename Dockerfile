@@ -18,10 +18,16 @@ COPY web/pom.xml web/
 RUN mvn dependency:go-offline -B
 
 COPY . .
-RUN mvn clean package -pl web -am -DskipTests
+RUN mvn clean package -pl web,cli -am -DskipTests \
+    && mkdir -p /build/static/downloads \
+    && cp /build/cli/target/cli-1.0.0.jar /build/static/downloads/chessinsight-cli.jar
+
+FROM nginx:1.27-alpine AS gateway
+COPY nginx/nginx.conf /etc/nginx/nginx.conf
+COPY --from=build /build/static /var/www/static
+
 FROM eclipse-temurin:24-jre AS runtime
 
-# JVM tuning for containers
 ENV JAVA_TOOL_OPTIONS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:ActiveProcessorCount=4 -XX:+UseG1GC"
 
 RUN apt-get update && apt-get install -y \

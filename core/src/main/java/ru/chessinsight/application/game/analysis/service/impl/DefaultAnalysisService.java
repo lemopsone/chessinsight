@@ -1,6 +1,7 @@
 package ru.chessinsight.application.game.analysis.service.impl;
 
 import org.springframework.stereotype.Service;
+import ru.chessinsight.application.common.logger.service.Logger;
 import ru.chessinsight.application.game.analysis.engine.ChessEngine;
 import ru.chessinsight.application.game.analysis.engine.dto.EngineMoveRequest;
 import ru.chessinsight.application.game.analysis.service.AccuracyCalculationService;
@@ -33,11 +34,13 @@ public class DefaultAnalysisService implements AnalysisService {
     private final GameRepository gameRepository;
     private final SanNotationService san;
     private final UciNotationService uci;
+    private final Logger logger;
 
     public DefaultAnalysisService(ChessEngine engine,
                                   AccuracyCalculationService accuracy,
                                   MoveClassificationService classifier,
-                                  GameRepository gameRepository
+                                  GameRepository gameRepository,
+                                  Logger logger
     ) {
         this.engine = engine;
         this.accuracy = accuracy;
@@ -45,13 +48,18 @@ public class DefaultAnalysisService implements AnalysisService {
         this.gameRepository = gameRepository;
         this.san = new SanNotationService();
         this.uci = new UciNotationService();
+        this.logger = logger;
     }
 
     @Override
     public GameAnalysisDTO analyzeGame(Game game) {
         if (game.getAnalysis() != null) {
+            logger.info("analysis.cached gameId=" + game.getId());
             return existingGameAnalysis(game);
         }
+        logger.info("analysis.start gameId=" + game.getId()
+                + " userId=" + game.getUserId()
+                + " moves=" + game.getMoves().size());
         var analysis = new GameAnalysis();
         List<MoveAnalysisDTO> analyzed = getGameMovesEval(game);
 
@@ -95,6 +103,10 @@ public class DefaultAnalysisService implements AnalysisService {
         game.setAnalysis(analysis);
         gameRepository.save(game);
 
+        logger.info("analysis.complete gameId=" + game.getId()
+                + " accuracyWhite=" + accWhite
+                + " accuracyBlack=" + accBlack
+                + " blunders=" + buckets.get(MoveCategory.BLUNDER).size());
         return new GameAnalysisDTO(
                 game.getId(),
                 game.getUserId(),
@@ -193,9 +205,11 @@ public class DefaultAnalysisService implements AnalysisService {
             Move bestMove = uci.uciToMove(moveAnalysis.bestUCI(), pos);
             String bestSAN = san.moveToSan(bestMove, pos);
             Double bestMoveEval = null;
-            if (moveAnalysis.mateScore() == null) {
-                bestMoveEval = moveAnalysis.cpLoss() * (pos.sideToMove() == Color.WHITE ? -1 : 11)
-                        + moveAnalysis.evalCp();
+            if (moveAnalysis.mateScore() == null
+                    && moveAnalysis.cpLoss() != null
+                    && moveAnalysis.evalCp() != null) {
+                double sign = (pos.sideToMove() == Color.WHITE) ? 1.0 : -1.0;
+                bestMoveEval = moveAnalysis.evalCp() + (sign * moveAnalysis.cpLoss());
             }
             buckets.get(moveAnalysis.category()).add(
                     new MoveAnalysisDTO(

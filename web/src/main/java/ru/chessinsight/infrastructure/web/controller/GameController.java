@@ -1,26 +1,30 @@
 package ru.chessinsight.infrastructure.web.controller;
 
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
+import jakarta.validation.Valid;
 import ru.chessinsight.application.auth.service.AuthService;
+import ru.chessinsight.application.game.analysis.service.GameAnalysisWorkflowService;
 import ru.chessinsight.application.game.dto.GameMetadataDTO;
 import ru.chessinsight.application.game.exception.GameNotFoundException;
 import ru.chessinsight.application.game.service.GameImportService;
 import ru.chessinsight.application.game.service.GameService;
-import ru.chessinsight.domain.common.pagination.PageParams;
 import ru.chessinsight.domain.game.model.Game;
 import ru.chessinsight.infrastructure.web.api.GamesApi;
 import ru.chessinsight.infrastructure.web.dto.GameCreateFromPgnRequest;
 import ru.chessinsight.infrastructure.web.dto.GameDTO;
-import ru.chessinsight.infrastructure.web.dto.PageResponse;
+import ru.chessinsight.infrastructure.web.dto.GameResult;
+import ru.chessinsight.infrastructure.web.dto.PageResponseGameDTO;
+import ru.chessinsight.infrastructure.web.dto.PatchGameRequest;
+import ru.chessinsight.infrastructure.web.dto.ReplaceGameRequest;
+import ru.chessinsight.infrastructure.web.mapper.AnalysisApiMapper;
 import ru.chessinsight.infrastructure.web.mapper.GameApiMapper;
 
-import java.util.List;
+import java.time.LocalDate;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @RestController
 public class GameController implements GamesApi, ApiV1Controller {
@@ -29,47 +33,48 @@ public class GameController implements GamesApi, ApiV1Controller {
     private final GameService gameService;
     private final GameImportService gameImportService;
     private final GameApiMapper gameApiMapper;
+    private final GameAnalysisWorkflowService gameAnalysisWorkflowService;
+    private final AnalysisApiMapper analysisApiMapper;
 
-    public GameController(AuthService authService, GameService gameService, GameImportService gameImportService, GameApiMapper gameApiMapper) {
+    public GameController(AuthService authService,
+                          GameService gameService,
+                          GameImportService gameImportService,
+                          GameApiMapper gameApiMapper,
+                          GameAnalysisWorkflowService gameAnalysisWorkflowService,
+                          AnalysisApiMapper analysisApiMapper) {
         this.authService = authService;
         this.gameService = gameService;
         this.gameImportService = gameImportService;
         this.gameApiMapper = gameApiMapper;
+        this.gameAnalysisWorkflowService = gameAnalysisWorkflowService;
+        this.analysisApiMapper = analysisApiMapper;
     }
 
+    @Override
     @GetMapping("/games")
-    public ResponseEntity<PageResponse<GameDTO>> listMyGames(
-            @RequestParam(required = false) Integer page,
-            @RequestParam(required = false) Integer size
+    public ResponseEntity<PageResponseGameDTO> listMyGames(
+            @RequestParam(required = false) GameResult result,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
+            @RequestParam(required = false) Boolean analyzed
     ) {
         UUID userId = authService.getCurrentUserId()
                 .orElseThrow(() -> new AccessDeniedException("Not authenticated"));
 
-        int p = page != null ? page : 0;
-        int s = size != null ? size : 20;
-
-        var pageResult = gameService.findUserGames(userId, new PageParams(p, s));
-
-        List<GameDTO> content = pageResult.content().stream()
-                .map(gameApiMapper::toGameDto)
-                .toList();
-
-        PageResponse<GameDTO> response = new PageResponse<>(
-                content,
-                pageResult.page(),
-                pageResult.size(),
-                pageResult.totalElements(),
-                pageResult.totalPages(),
-                pageResult.hasNext(),
-                pageResult.hasPrevious()
+        PageResponseGameDTO response = gameApiMapper.toPageResponse(
+                gameService.findUserGames(
+                        userId,
+                        gameApiMapper.toSearchCriteria(result, dateFrom, dateTo, analyzed)
+                )
         );
 
         return ResponseEntity.ok(response);
     }
 
+    @Override
     @PostMapping("/games")
-    public ResponseEntity<GameDTO> createGameFromPgn(
-            @RequestBody GameCreateFromPgnRequest body
+    public ResponseEntity<GameDTO> importGameFromPgn(
+            @Valid @RequestBody GameCreateFromPgnRequest body
     ) {
         UUID userId = authService.getCurrentUserId()
                 .orElseThrow(() -> new AccessDeniedException("Not authenticated"));
@@ -82,45 +87,56 @@ public class GameController implements GamesApi, ApiV1Controller {
         );
 
         Game game = gameService.getGame(gameId)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Game not found"
-                ));
+                .orElseThrow(() -> new GameNotFoundException("Game not found"));
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(gameApiMapper.toGameDto(game));
     }
 
+    @Override
+    @PostMapping("/games/{gameId}/analysis")
+    public ResponseEntity<ru.chessinsight.infrastructure.web.dto.GameAnalysisDTO> analyzeGame(
+            @PathVariable UUID gameId
+    ) {
+        var dto = gameAnalysisWorkflowService.analyzeGame(gameId);
+        return ResponseEntity.ok(analysisApiMapper.toApiGameAnalysis(dto));
+    }
+
+    @Override
     @GetMapping("/games/{gameId}")
     public ResponseEntity<GameDTO> getGame(@PathVariable UUID gameId) {
         Game game = gameService.getGame(gameId)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Game not found"
-                ));
+                .orElseThrow(() -> new GameNotFoundException("Game not found"));
         return ResponseEntity.ok(gameApiMapper.toGameDto(game));
     }
 
+    @Override
     @PutMapping("/games/{gameId}")
     public ResponseEntity<GameDTO> replaceGame(
             @PathVariable UUID gameId,
-            @RequestBody GameDTO body
+            @Valid @RequestBody ReplaceGameRequest body
     ) {
-        try {
-            GameMetadataDTO meta = gameApiMapper.toMetaDto(body);
-            Game saved = gameService.updateGameMetadata(gameId, meta);
-            return ResponseEntity.ok(gameApiMapper.toGameDto(saved));
-        } catch (GameNotFoundException _) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Game not found");
-        }
+        GameMetadataDTO meta = gameApiMapper.toMetaDto(body);
+        Game saved = gameService.updateGameMetadata(gameId, meta);
+        return ResponseEntity.ok(gameApiMapper.toGameDto(saved));
     }
 
+    @Override
+    @PatchMapping("/games/{gameId}")
+    public ResponseEntity<GameDTO> patchGame(
+            @PathVariable UUID gameId,
+            @Valid @RequestBody PatchGameRequest body
+    ) {
+        var patch = gameApiMapper.toPatchDto(body);
+        Game saved = gameService.patchGameMetadata(gameId, patch);
+        return ResponseEntity.ok(gameApiMapper.toGameDto(saved));
+    }
+
+    @Override
     @DeleteMapping("/games/{gameId}")
     public ResponseEntity<Void> deleteGame(@PathVariable UUID gameId) {
-        try {
-            gameService.deleteGame(gameId);
-        } catch (GameNotFoundException _) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Game not found");
-        }
-        return ResponseEntity.ok().build();
+        gameService.deleteGame(gameId);
+        return ResponseEntity.noContent().build();
     }
 }

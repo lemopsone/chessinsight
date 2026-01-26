@@ -1,11 +1,13 @@
 package ru.chessinsight.infrastructure.web.mapper;
 
 import org.springframework.stereotype.Component;
+import ru.chessinsight.domain.common.pagination.Page;
 import ru.chessinsight.domain.user.model.Role;
 import ru.chessinsight.domain.user.model.User;
 import ru.chessinsight.domain.user.model.UserStatistics;
 import ru.chessinsight.infrastructure.web.dto.AdminPatchUserRequest;
 import ru.chessinsight.infrastructure.web.dto.AdminUserDTO;
+import ru.chessinsight.infrastructure.web.dto.PageResponseAdminUserDTO;
 import ru.chessinsight.infrastructure.web.dto.UserDTO;
 import ru.chessinsight.infrastructure.web.dto.UserRole;
 import ru.chessinsight.infrastructure.web.dto.UserStatisticsDTO;
@@ -58,6 +60,18 @@ public class UserApiMapper {
 
         dto.setStatistics(toStatisticsDto(user.getStatistics()));
         return dto;
+    }
+
+    public PageResponseAdminUserDTO toAdminUserPageResponse(Page<User> page) {
+        PageResponseAdminUserDTO response = new PageResponseAdminUserDTO();
+        response.setContent(page.content().stream().map(this::toAdminUserDto).toList());
+        response.setPage(page.page());
+        response.setSize(page.size());
+        response.setTotalElements(page.totalElements());
+        response.setTotalPages(page.totalPages());
+        response.setHasNext(page.hasNext());
+        response.setHasPrevious(page.hasPrevious());
+        return response;
     }
 
     public UserStatisticsDTO toStatisticsDto(UserStatistics stats) {
