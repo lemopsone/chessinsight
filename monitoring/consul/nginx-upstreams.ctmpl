@@ -1,0 +1,44 @@
+{{- $common := "max_fails=3 fail_timeout=10s" -}}
+upstream backend_api_read {
+{{- $servers := service "backend_api_read" -}}
+{{- if gt (len $servers) 0 }}
+{{- range $servers }}
+  server {{ .Address }}:{{ .Port }} {{ $common }}{{ if eq .Address "backend" }} weight=2{{ end }};
+{{- end }}
+{{- else }}
+  server 127.0.0.1:1;
+{{- end }}
+}
+
+upstream backend_api_write {
+{{- $servers := service "backend_api_write" -}}
+{{- if gt (len $servers) 0 }}
+{{- range $servers }}
+  server {{ .Address }}:{{ .Port }} {{ $common }};
+{{- end }}
+{{- else }}
+  server 127.0.0.1:1;
+{{- end }}
+}
+
+upstream backend_mirror_read {
+{{- $servers := service "backend_mirror_api_read" -}}
+{{- if gt (len $servers) 0 }}
+{{- range $servers }}
+  server {{ .Address }}:{{ .Port }} {{ $common }}{{ if eq .Address "backend_mirror" }} weight=2{{ end }};
+{{- end }}
+{{- else }}
+  server 127.0.0.1:1;
+{{- end }}
+}
+
+upstream backend_mirror_write {
+{{- $servers := service "backend_mirror_api_write" -}}
+{{- if gt (len $servers) 0 }}
+{{- range $servers }}
+  server {{ .Address }}:{{ .Port }} {{ $common }};
+{{- end }}
+{{- else }}
+  server 127.0.0.1:1;
+{{- end }}
+}
