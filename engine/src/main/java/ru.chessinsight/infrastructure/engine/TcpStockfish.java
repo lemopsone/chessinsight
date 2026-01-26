@@ -13,6 +13,7 @@ import ru.chessinsight.domain.chess.move.service.MoveMaker;
 import ru.chessinsight.domain.chess.position.model.Position;
 
 import java.io.*;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.time.Duration;
 import java.util.*;
@@ -36,10 +37,21 @@ public class TcpStockfish implements ChessEngine, AutoCloseable {
     private final UciNotationService uci = new UciNotationService();
     private final SanNotationService san = new SanNotationService();
 
+    private static final int CONNECT_MAX_ATTEMPTS = 8;
+    private static final int CONNECT_TIMEOUT_MS = 1500;
+    private static final int CONNECT_BACKOFF_MS = 300;
+
+    private final String host;
+    private final int port;
     private final int defaultDepth;
-    private final Socket socket;
-    private final BufferedReader reader;
-    private final BufferedWriter writer;
+    private final int threads;
+    private final int hashMb;
+    private final boolean ponder;
+    private final Object connectionLock = new Object();
+
+    private Socket socket;
+    private BufferedReader reader;
+    private BufferedWriter writer;
 
     private String engineName = "Unknown";
     private String engineAuthor = null;
@@ -47,16 +59,58 @@ public class TcpStockfish implements ChessEngine, AutoCloseable {
     public TcpStockfish(
             @Value("${engine.stockfish.host:stockfish}") String host,
             @Value("${engine.stockfish.port:5000}") int port,
-            @Value("${engine.stockfish.defaultDepth:15}") int defaultDepth
+            @Value("${engine.stockfish.defaultDepth:15}") int defaultDepth,
+            @Value("${engine.stockfish.threads:2}") int threads,
+            @Value("${engine.stockfish.hash:128}") int hashMb,
+            @Value("${engine.stockfish.ponder:false}") boolean ponder
     ) throws IOException, EngineException {
+        this.host = host;
+        this.port = port;
         this.defaultDepth = defaultDepth;
-        this.socket = new Socket(host, port);
-        this.reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        this.writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
-        initialize();
+        this.threads = Math.max(1, threads);
+        this.hashMb = Math.max(16, hashMb);
+        this.ponder = ponder;
+    }
+
+    private void ensureConnected() throws EngineException {
+        if (socket != null && socket.isConnected() && !socket.isClosed()) {
+            return;
+        }
+        synchronized (connectionLock) {
+            if (socket != null && socket.isConnected() && !socket.isClosed()) {
+                return;
+            }
+            EngineException lastError = null;
+            for (int attempt = 1; attempt <= CONNECT_MAX_ATTEMPTS; attempt++) {
+                try {
+                    Socket newSocket = new Socket();
+                    newSocket.connect(new InetSocketAddress(host, port), CONNECT_TIMEOUT_MS);
+                    this.socket = newSocket;
+                    this.reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                    this.writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
+                    initialize();
+                    return;
+                } catch (IOException | EngineException e) {
+                    lastError = (e instanceof EngineException)
+                            ? (EngineException) e
+                            : new EngineException("Failed to connect to Stockfish at " + host + ":" + port + ": " + e.getMessage());
+                    closeQuietly();
+                    try {
+                        Thread.sleep(CONNECT_BACKOFF_MS * attempt);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw lastError;
+                    }
+                }
+            }
+            throw lastError != null ? lastError : new EngineException("Failed to connect to Stockfish");
+        }
     }
 
     private void sendCommand(String cmd) throws EngineException {
+        if (writer == null) {
+            throw new EngineException("Stockfish connection is not initialized");
+        }
         try {
             writer.write(cmd + "\n");
             writer.flush();
@@ -92,11 +146,9 @@ public class TcpStockfish implements ChessEngine, AutoCloseable {
             throw new EngineException("Engine did not respond to 'uci': " + e.getMessage());
         }
 
-        sendCommand("setoption name Threads value 4");
-//        System.out.println("[Stockfish INIT] " + "threads");
-        sendCommand("setoption name Hash value 512");
-//        System.out.println("[Stockfish INIT] " + "hash");
-        sendCommand("setoption name Ponder value false");
+        sendCommand("setoption name Threads value " + threads);
+        sendCommand("setoption name Hash value " + hashMb);
+        sendCommand("setoption name Ponder value " + ponder);
 //        System.out.println("[Stockfish INIT] " + "ponder");
         isReady();
 //        System.out.println("isReady");
@@ -118,6 +170,7 @@ public class TcpStockfish implements ChessEngine, AutoCloseable {
 
     @Override
     public EnginePositionAnalysis analyzePosition(EngineAnalysisRequest request) throws EngineException {
+        ensureConnected();
         final String fen = request.positionFEN();
         final int depth = request.effectiveDepth(defaultDepth);
         final int multipv = request.effectiveMultiPv();
@@ -238,6 +291,7 @@ public class TcpStockfish implements ChessEngine, AutoCloseable {
 
     @Override
     public EngineMoveAnalysis analyzeMove(EngineMoveRequest request) throws EngineException {
+        ensureConnected();
         final String fen = request.positionFEN();
         final String playedUci = request.playedMoveUci();
         final int depth = request.effectiveDepth(defaultDepth);
@@ -302,10 +356,25 @@ public class TcpStockfish implements ChessEngine, AutoCloseable {
 
     @Override
     public void close() throws IOException {
+        closeQuietly();
+    }
+
+    private void closeQuietly() {
         try {
-            System.out.println("Quitting...");
-            sendCommand("quit");
-        } catch (Exception ignored) {}
-        socket.close();
+            if (writer != null) {
+                sendCommand("quit");
+            }
+        } catch (Exception ignored) {
+        }
+        try {
+            if (socket != null) {
+                socket.close();
+            }
+        } catch (Exception ignored) {
+        } finally {
+            socket = null;
+            reader = null;
+            writer = null;
+        }
     }
 }

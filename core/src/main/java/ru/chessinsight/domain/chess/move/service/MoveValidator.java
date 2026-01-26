@@ -26,7 +26,7 @@ public class MoveValidator {
 
     public boolean isKingInCheck(Position p, Color c) {
         var kingCoords = p.board().getKingSquare(c);
-        var attackedSquares = getSideAttackedSquares(p, p.sideToMove().opponent());
+        var attackedSquares = getSideAttackedSquares(p, c.opponent());
         return attackedSquares.contains(kingCoords);
     }
 

@@ -37,6 +37,7 @@ public class GameEntity {
     private GameAnalysisEntity analysis;
 
     @OneToMany(mappedBy = "game", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OrderBy("plyIndex ASC")
     private final Set<GameMoveEntity> moves = new TreeSet<>(Comparator.comparing(GameMoveEntity::getPlyIndex));
 
     public UUID getId(){ return id; }

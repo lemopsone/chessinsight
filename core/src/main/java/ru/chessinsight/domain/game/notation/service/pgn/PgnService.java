@@ -8,6 +8,7 @@ import ru.chessinsight.domain.chess.move.service.MoveMaker;
 import ru.chessinsight.domain.exception.InvalidSANException;
 import ru.chessinsight.domain.game.model.Game;
 import ru.chessinsight.domain.game.model.GameMove;
+import ru.chessinsight.domain.game.model.GameResult;
 import ru.chessinsight.domain.game.notation.service.pgn.utils.PgnAst;
 import ru.chessinsight.domain.game.notation.service.pgn.utils.PgnParser;
 
@@ -40,6 +41,9 @@ public class PgnService {
         game.setDate(dateString == null
                 ? null
                 : LocalDate.parse(dateString, DateTimeFormatter.ofPattern("yyyy.MM.dd")));
+        String resultTag = ast.tags != null ? ast.tags.get("Result") : null;
+        GameResult result = parseResult(resultTag != null ? resultTag : ast.result);
+        game.setResult(result);
         return game;
     }
 
@@ -91,5 +95,22 @@ public class PgnService {
         }
         sb.append("*");
         return sb.toString();
+    }
+
+    private static GameResult parseResult(String tag) {
+        if (tag == null) return null;
+        return switch (tag.trim()) {
+            case "1-0" -> GameResult.WHITE_WIN;
+            case "0-1" -> GameResult.BLACK_WIN;
+            case "1/2-1/2" -> GameResult.DRAW;
+            case "*" -> GameResult.UNFINISHED;
+            default -> {
+                try {
+                    yield GameResult.valueOf(tag.trim());
+                } catch (IllegalArgumentException ex) {
+                    yield null;
+                }
+            }
+        };
     }
 }

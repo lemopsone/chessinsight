@@ -23,8 +23,25 @@ RUN mvn clean package -pl web,cli -am -DskipTests \
     && cp /build/cli/target/cli-1.0.0.jar /build/static/downloads/chessinsight-cli.jar
 
 FROM nginx:1.27-alpine AS gateway
+RUN apk add --no-cache curl unzip \
+    && curl -fsSL https://releases.hashicorp.com/consul-template/0.37.4/consul-template_0.37.4_linux_amd64.zip -o /tmp/consul-template.zip \
+    && unzip /tmp/consul-template.zip -d /usr/local/bin \
+    && rm /tmp/consul-template.zip \
+    && chmod +x /usr/local/bin/consul-template
 COPY nginx/nginx.conf /etc/nginx/nginx.conf
+COPY nginx/conf.d /etc/nginx/conf.d
+COPY nginx/docker-entrypoint.d /docker-entrypoint.d
 COPY --from=build /build/static /var/www/static
+
+FROM nginx:1.27-alpine AS stockfish-pool
+RUN apk add --no-cache curl unzip \
+    && curl -fsSL https://releases.hashicorp.com/consul-template/0.37.4/consul-template_0.37.4_linux_amd64.zip -o /tmp/consul-template.zip \
+    && unzip /tmp/consul-template.zip -d /usr/local/bin \
+    && rm /tmp/consul-template.zip \
+    && chmod +x /usr/local/bin/consul-template
+COPY nginx/stockfish-stream.conf /etc/nginx/nginx.conf
+COPY nginx/stockfish-entrypoint.d /docker-entrypoint.d
+RUN chmod +x /docker-entrypoint.d/*.sh
 
 FROM eclipse-temurin:24-jre AS runtime
 

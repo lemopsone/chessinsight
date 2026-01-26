@@ -2,6 +2,7 @@ package ru.chessinsight.infrastructure.web.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -23,6 +24,7 @@ import ru.chessinsight.application.statistics.exception.UserNotFoundException;
 import ru.chessinsight.domain.exception.DomainException;
 import ru.chessinsight.infrastructure.web.dto.ProblemDetails;
 
+import java.sql.SQLException;
 import java.util.StringJoiner;
 
 @RestControllerAdvice
@@ -134,6 +136,27 @@ public class ApiExceptionHandler {
                 .body(ProblemDetailsFactory.create(status, detail, request.getRequestURI()));
     }
 
+    @ExceptionHandler(DataAccessException.class)
+    public ResponseEntity<ProblemDetails> handleDataAccess(
+            DataAccessException ex,
+            HttpServletRequest request
+    ) {
+        if (isReadOnlyViolation(ex)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ProblemDetailsFactory.create(
+                            HttpStatus.FORBIDDEN,
+                            "Read-only replica: write operations are not allowed",
+                            request.getRequestURI()
+                    ));
+        }
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ProblemDetailsFactory.create(
+                        HttpStatus.INTERNAL_SERVER_ERROR,
+                        "Database error",
+                        request.getRequestURI()
+                ));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ProblemDetails> handleUnexpected(
             Exception ex,
@@ -145,6 +168,24 @@ public class ApiExceptionHandler {
                         "Internal server error",
                         request.getRequestURI()
                 ));
+    }
+
+    private boolean isReadOnlyViolation(Throwable ex) {
+        Throwable current = ex;
+        while (current != null) {
+            if (current instanceof SQLException sqlException) {
+                String sqlState = sqlException.getSQLState();
+                if ("25006".equals(sqlState) || "42501".equals(sqlState)) {
+                    return true;
+                }
+            }
+            String message = current.getMessage();
+            if (message != null && message.toLowerCase().contains("read-only")) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     private ResponseEntity<ProblemDetails> badRequest(String detail, HttpServletRequest request) {

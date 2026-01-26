@@ -6,29 +6,157 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
-#    volumes:
-#      - ./:/app
-#    working_dir: /app
     environment:
-      - ENGINE_HOST=stockfish
-      - ENGINE_PORT=5555
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
+      - ENGINE_STOCKFISH_HOST=stockfish-pool
+      - ENGINE_STOCKFISH_PORT=5555
+      - ENGINE_STOCKFISH_THREADS=2
+      - ENGINE_STOCKFISH_HASH=128
+      - ENGINE_STOCKFISH_PONDER=false
+      - PG_URL=jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+      - PG_USER=${DB_USER}
+      - PG_PASS=${DB_PASSWORD}
       - ES_HOST=${ES_HOST}
       - ES_PORT=${ES_PORT}
+      - SERVER_PORT=8080
     depends_on:
-      - postgres
-#      - elasticsearch
+      - postgres-master
       - redis
-      - stockfish
+      - stockfish-pool
     deploy:
       resources:
         limits:
           cpus: "4"
           memory: 4g
+    networks:
+      - chessnet
+
+  backend_ro1:
+    container_name: backend-ro-1
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      - ENGINE_STOCKFISH_HOST=stockfish-pool
+      - ENGINE_STOCKFISH_PORT=5555
+      - ENGINE_STOCKFISH_THREADS=1
+      - ENGINE_STOCKFISH_HASH=64
+      - ENGINE_STOCKFISH_PONDER=false
+      - PG_URL=jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+      - PG_USER=${DB_READONLY_USER}
+      - PG_PASS=${DB_READONLY_PASSWORD}
+      - ES_HOST=${ES_HOST}
+      - ES_PORT=${ES_PORT}
+      - SERVER_PORT=8081
+    depends_on:
+      - postgres-master
+      - redis
+      - stockfish-pool
+    networks:
+      - chessnet
+
+  backend_ro2:
+    container_name: backend-ro-2
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8082:8082"
+    environment:
+      - ENGINE_STOCKFISH_HOST=stockfish-pool
+      - ENGINE_STOCKFISH_PORT=5555
+      - ENGINE_STOCKFISH_THREADS=1
+      - ENGINE_STOCKFISH_HASH=64
+      - ENGINE_STOCKFISH_PONDER=false
+      - PG_URL=jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+      - PG_USER=${DB_READONLY_USER}
+      - PG_PASS=${DB_READONLY_PASSWORD}
+      - ES_HOST=${ES_HOST}
+      - ES_PORT=${ES_PORT}
+      - SERVER_PORT=8082
+    depends_on:
+      - postgres-master
+      - redis
+      - stockfish-pool
+    networks:
+      - chessnet
+
+  backend_mirror:
+    container_name: backend-mirror
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8083:8083"
+    environment:
+      - ENGINE_STOCKFISH_HOST=stockfish-pool
+      - ENGINE_STOCKFISH_PORT=5555
+      - ENGINE_STOCKFISH_THREADS=2
+      - ENGINE_STOCKFISH_HASH=128
+      - ENGINE_STOCKFISH_PONDER=false
+      - PG_URL=jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+      - PG_USER=${DB_USER}
+      - PG_PASS=${DB_PASSWORD}
+      - ES_HOST=${ES_HOST}
+      - ES_PORT=${ES_PORT}
+      - SERVER_PORT=8083
+    depends_on:
+      - postgres-master
+      - redis
+      - stockfish-pool
+    networks:
+      - chessnet
+
+  backend_mirror_ro1:
+    container_name: backend-mirror-ro-1
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8084:8084"
+    environment:
+      - ENGINE_STOCKFISH_HOST=stockfish-pool
+      - ENGINE_STOCKFISH_PORT=5555
+      - ENGINE_STOCKFISH_THREADS=1
+      - ENGINE_STOCKFISH_HASH=64
+      - ENGINE_STOCKFISH_PONDER=false
+      - PG_URL=jdbc:postgresql://${DB_REPLICA_HOST}:${DB_PORT}/${DB_NAME}
+      - PG_USER=${DB_READONLY_USER}
+      - PG_PASS=${DB_READONLY_PASSWORD}
+      - ES_HOST=${ES_HOST}
+      - ES_PORT=${ES_PORT}
+      - SERVER_PORT=8084
+    depends_on:
+      - postgres-replica
+      - redis
+      - stockfish-pool
+    networks:
+      - chessnet
+
+  backend_mirror_ro2:
+    container_name: backend-mirror-ro-2
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8085:8085"
+    environment:
+      - ENGINE_STOCKFISH_HOST=stockfish-pool
+      - ENGINE_STOCKFISH_PORT=5555
+      - ENGINE_STOCKFISH_THREADS=1
+      - ENGINE_STOCKFISH_HASH=64
+      - ENGINE_STOCKFISH_PONDER=false
+      - PG_URL=jdbc:postgresql://${DB_REPLICA_HOST}:${DB_PORT}/${DB_NAME}
+      - PG_USER=${DB_READONLY_USER}
+      - PG_PASS=${DB_READONLY_PASSWORD}
+      - ES_HOST=${ES_HOST}
+      - ES_PORT=${ES_PORT}
+      - SERVER_PORT=8085
+    depends_on:
+      - postgres-replica
+      - redis
+      - stockfish-pool
     networks:
       - chessnet
 
@@ -41,26 +169,53 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./monitoring/consul/nginx-upstreams.ctmpl:/etc/nginx/conf.d/01-upstreams-consul.conf.ctmpl:ro
+      - ./monitoring/consul/consul-template.hcl:/etc/consul-template/consul-template.hcl:ro
     depends_on:
       - backend
+      - backend_ro1
+      - backend_ro2
+      - backend_mirror
+      - backend_mirror_ro1
+      - backend_mirror_ro2
       - adminer
+      - grafana
+      - consul
     networks:
       - chessnet
+
+  consul:
+    image: hashicorp/consul:1.17.2
+    container_name: consul
+    command: agent -server -bootstrap-expect=1 -ui -client=0.0.0.0 -data-dir=/consul/data -config-dir=/consul/config
+    ports:
+      - "8500:8500"
+    volumes:
+      - consul-data:/consul/data
+      - ./monitoring/consul/services:/consul/config
+    networks:
+      - chessnet
+
+
 
   adminer:
     image: adminer:4
     container_name: adminer
     environment:
-      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DEFAULT_SERVER: postgres-master
+    depends_on:
+      - postgres-master
     networks:
       - chessnet
 
-  stockfish:
+  stockfish-1:
     platform: linux/amd64
     build:
       context: .
       dockerfile: Dockerfile.stockfish
-    container_name: stockfish
+    container_name: stockfish-1
     expose:
       - "5555"
     networks:
@@ -73,16 +228,111 @@ services:
     volumes:
       - ~/.m2:/root/.m2
       - ./testData:/app/testData
-  postgres:
+
+  stockfish-2:
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile.stockfish
+    container_name: stockfish-2
+    expose:
+      - "5555"
+    networks:
+      - chessnet
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 512m
+    volumes:
+      - ~/.m2:/root/.m2
+      - ./testData:/app/testData
+
+  stockfish-3:
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile.stockfish
+    container_name: stockfish-3
+    expose:
+      - "5555"
+    networks:
+      - chessnet
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 512m
+    volumes:
+      - ~/.m2:/root/.m2
+      - ./testData:/app/testData
+
+  stockfish-pool:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: stockfish-pool
+    container_name: stockfish-pool
+    volumes:
+      - ./nginx/stockfish-stream.conf:/etc/nginx/nginx.conf:ro
+      - ./monitoring/consul/stockfish-stream.ctmpl:/etc/nginx/stockfish-stream.conf.ctmpl:ro
+      - ./monitoring/consul/consul-template-stockfish.hcl:/etc/consul-template/consul-template.hcl:ro
+    depends_on:
+      - stockfish-1
+      - stockfish-2
+      - stockfish-3
+      - consul
+    networks:
+      - chessnet
+
+  postgres-master:
     image: postgres:15
+    container_name: postgres-master
     environment:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
+      READONLY_USER: ${DB_READONLY_USER}
+      READONLY_PASSWORD: ${DB_READONLY_PASSWORD}
+      REPLICATION_USER: ${DB_REPLICATION_USER}
+      REPLICATION_PASSWORD: ${DB_REPLICATION_PASSWORD}
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-master-data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d
     ports:
       - "${DB_PORT}:5432"
+    command:
+      - postgres
+      - -c
+      - wal_level=replica
+      - -c
+      - max_wal_senders=10
+      - -c
+      - max_replication_slots=10
+      - -c
+      - hot_standby=on
+    networks:
+      - chessnet
+
+  postgres-replica:
+    image: postgres:15
+    container_name: postgres-replica
+    entrypoint: ["/usr/local/bin/docker-entrypoint-replica.sh"]
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      REPLICATION_USER: ${DB_REPLICATION_USER}
+      REPLICATION_PASSWORD: ${DB_REPLICATION_PASSWORD}
+      REPLICATION_HOST: postgres-master
+      REPLICATION_PORT: 5432
+    volumes:
+      - postgres-replica-data:/var/lib/postgresql/data
+      - ./postgres/replica/docker-entrypoint-replica.sh:/usr/local/bin/docker-entrypoint-replica.sh:ro
+    depends_on:
+      - postgres-master
+    ports:
+      - "5433:5432"
     networks:
       - chessnet
 
@@ -93,9 +343,52 @@ services:
     networks:
       - chessnet
 
+  loki:
+    image: grafana/loki:2.9.8
+    container_name: loki
+    command: -config.file=/etc/loki/config.yml
+    volumes:
+      - loki-data:/loki
+      - ./monitoring/loki-config.yml:/etc/loki/config.yml:ro
+    networks:
+      - chessnet
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - ./monitoring/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - loki
+    networks:
+      - chessnet
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: grafana
+    environment:
+      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s/monitoring/"
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - loki
+    networks:
+      - chessnet
+
 volumes:
-  postgres-data:
+  postgres-master-data:
+  postgres-replica-data:
+  grafana-data:
+  loki-data:
   es-data:
+  consul-data:
 
 networks:
   chessnet:
