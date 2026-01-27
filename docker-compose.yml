@@ -274,7 +274,7 @@ services:
       target: stockfish-pool
     container_name: stockfish-pool
     volumes:
-      - ./nginx/stockfish-stream.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/generated/streams:/etc/nginx/streams-enabled
       - ./monitoring/consul/stockfish-stream.ctmpl:/etc/nginx/stockfish-stream.conf.ctmpl:ro
       - ./monitoring/consul/consul-template-stockfish.hcl:/etc/consul-template/consul-template.hcl:ro
     depends_on:

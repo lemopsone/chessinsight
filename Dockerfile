@@ -40,6 +40,7 @@ RUN apk add --no-cache curl unzip \
     && rm /tmp/consul-template.zip \
     && chmod +x /usr/local/bin/consul-template
 COPY nginx/stockfish-stream.conf /etc/nginx/nginx.conf
+RUN mkdir -p /etc/nginx/streams-enabled
 COPY nginx/stockfish-entrypoint.d /docker-entrypoint.d
 RUN chmod +x /docker-entrypoint.d/*.sh
 

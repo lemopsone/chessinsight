@@ -39,3 +39,5 @@ build/
 
 ### Downloads ###
 **/downloads/**
+
+**/nginx/generated/

@@ -10,7 +10,7 @@ consul {
 
 template {
   source      = "/etc/nginx/stockfish-stream.conf.ctmpl"
-  destination = "/etc/nginx/nginx.conf"
+  destination = "/etc/nginx/streams-enabled/stockfish.conf"
   perms       = 0644
-  command     = ["nginx", "-s", "reload"]
+  command     = "nginx -t && nginx -s reload"
 }
