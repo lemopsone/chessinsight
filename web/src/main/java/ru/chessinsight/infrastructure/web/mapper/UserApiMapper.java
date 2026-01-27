@@ -5,7 +5,6 @@ import ru.chessinsight.domain.common.pagination.Page;
 import ru.chessinsight.domain.user.model.Role;
 import ru.chessinsight.domain.user.model.User;
 import ru.chessinsight.domain.user.model.UserStatistics;
-import ru.chessinsight.infrastructure.web.dto.AdminPatchUserRequest;
 import ru.chessinsight.infrastructure.web.dto.AdminUserDTO;
 import ru.chessinsight.infrastructure.web.dto.PageResponseAdminUserDTO;
 import ru.chessinsight.infrastructure.web.dto.UserDTO;
@@ -102,20 +101,5 @@ public class UserApiMapper {
         return roles.stream()
                 .map(this::toDomainRole)
                 .collect(Collectors.toSet());
-    }
-
-    public void applyAdminPatch(User user, AdminPatchUserRequest patch) {
-        if (patch.getLogin() != null) {
-            user.setLogin(patch.getLogin());
-        }
-        if (patch.getEmail() != null) {
-            user.setEmail(patch.getEmail());
-        }
-        if (patch.getRoles() != null) {
-            user.setRoles(toDomainRoles(patch.getRoles()));
-        }
-        if (patch.getActive() != null) {
-            user.setActive(patch.getActive());
-        }
     }
 }

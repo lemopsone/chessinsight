@@ -50,4 +50,13 @@ public class DefaultUserProfileService implements UserProfileService {
                 + " passwordChanged=" + passwordChanged);
         return user;
     }
+
+    @Override
+    public void deactivateUser(UUID userId) {
+        User user = userRepository.findOneById(userId)
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+        user.setActive(false);
+        userRepository.save(user);
+        logger.info("user.profile.deactivated userId=" + userId);
+    }
 }

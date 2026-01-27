@@ -3,6 +3,7 @@ package ru.chessinsight.infrastructure.web.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -45,10 +46,16 @@ public class SecurityConfig {
                                 "/v1/api-docs/**"
                             ).permitAll()
                         .requestMatchers(
-                                "/v1/auth/signup",
-                                "/v1/auth/signin",
-                                "/v1/auth/refresh",
-                                "/v1/auth/signout"
+                                HttpMethod.POST, "/v1/users"
+                        ).permitAll()
+                        .requestMatchers(
+                                HttpMethod.POST, "/v1/auth/sessions"
+                        ).permitAll()
+                        .requestMatchers(
+                                HttpMethod.DELETE, "/v1/auth/sessions"
+                        ).permitAll()
+                        .requestMatchers(
+                                HttpMethod.POST, "/v1/auth/tokens"
                         ).permitAll()
                         .requestMatchers("/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()

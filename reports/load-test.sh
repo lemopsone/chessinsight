@@ -35,13 +35,13 @@ PY
 }
 
 if [ "$SIGNUP" = "1" ]; then
-  curl -sS -X POST "$BASE_URL/api/v1/auth/signup" \
+  curl -sS -X POST "$BASE_URL/api/v1/users" \
     -H "Content-Type: application/json" \
     -d "{\"login\":\"$LOGIN_OR_EMAIL\",\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}" \
     >/dev/null || true
 fi
 
-AUTH_RESP=$(curl -sS -X POST "$BASE_URL/api/v1/auth/signin" \
+AUTH_RESP=$(curl -sS -X POST "$BASE_URL/api/v1/auth/sessions" \
   -H "Content-Type: application/json" \
   -d "{\"loginOrEmail\":\"$LOGIN_OR_EMAIL\",\"passwordOrToken\":\"$PASSWORD\",\"authType\":\"$AUTH_TYPE\"}" \
   -w "\n%{http_code}")
@@ -87,7 +87,7 @@ run_wrk() {
   echo >> "$OUT"
 }
 
-run_wrk "GET /api/v1/training/scenarios?completed=true" "reports/wrk-get.lua" "$BASE_URL/api/v1/training/scenarios?completed=true"
+run_wrk "GET /api/v1/users/me/training-scenarios?completed=true" "reports/wrk-get.lua" "$BASE_URL/api/v1/users/me/training-scenarios?completed=true"
 run_wrk "POST /api/v1/games (invalid body)" "reports/wrk-post-bad.lua" "$BASE_URL/api/v1/games"
 
 echo "Report saved to $OUT"

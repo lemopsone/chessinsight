@@ -19,14 +19,60 @@ tags:
     description: Анализ партий и отдельных ходов
   - name: Training
     description: Тренировочные сценарии и обучение
-  - name: Admin
-    description: Админ-панель
 
 paths:
-  /auth/signup:
+  /users:
+    get:
+      tags: [Users]
+      summary: "Список пользователей (админ)"
+      operationId: listUsersAdmin
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            format: int32
+            minimum: 0
+        - in: query
+          name: size
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+        - in: query
+          name: active
+          schema:
+            type: boolean
+        - in: query
+          name: roles
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/UserRole'
+      responses:
+        '200':
+          description: "Пагинированный список пользователей"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageResponseAdminUserDTO'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Нет прав (требуется ADMIN)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
     post:
       tags: [Auth]
-      summary: Регистрация пользователя
+      summary: Создание пользователя (регистрация)
       operationId: signUp
       requestBody:
         required: true
@@ -54,10 +100,10 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
 
-  /auth/signin:
+  /auth/sessions:
     post:
       tags: [Auth]
-      summary: Вход пользователя
+      summary: Создание сессии (вход пользователя)
       operationId: signIn
       requestBody:
         required: true
@@ -84,47 +130,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
-
-  /auth/refresh:
-    post:
+    delete:
       tags: [Auth]
-      summary: Обновление токена
-      operationId: refreshToken
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                refreshToken:
-                  type: string
-              required:
-                - refreshToken
-      responses:
-        '200':
-          description: Новый токен
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserTokenDTO'
-        '400':
-          description: Некорректные данные
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-        '401':
-          description: Невалидный или истекший refresh-токен
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-
-  /auth/signout:
-    post:
-      tags: [Auth]
-      summary: Выход, инвалидация refresh-токена
+      summary: Завершение сессии (выход, инвалидация refresh-токена)
       operationId: signOut
       requestBody:
         required: true
@@ -152,22 +160,37 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
 
-  /auth/me:
-    get:
-      tags: [Users]
-      summary: Информация о текущем пользователе 
-      operationId: getCurrentUserAuth
-      security:
-        - bearerAuth: []
+  /auth/tokens:
+    post:
+      tags: [Auth]
+      summary: Выпуск новых токенов по refresh-токену
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+              required:
+                - refreshToken
       responses:
         '200':
-          description: Профиль текущего пользователя
+          description: Новый токен
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserDTO'
+                $ref: '#/components/schemas/UserTokenDTO'
+        '400':
+          description: Некорректные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '401':
-          description: Не авторизован
+          description: Невалидный или истекший refresh-токен
           content:
             application/json:
               schema:
@@ -254,7 +277,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
 
-  /games:
+  /users/me/games:
     get:
       tags: [Games]
       summary: Список партий текущего пользователя
@@ -297,6 +320,64 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+
+  /users/{userId}/games:
+    get:
+      tags: [Games]
+      summary: Список партий пользователя (админ)
+      operationId: listUserGamesAdmin
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: result
+          required: false
+          schema:
+            $ref: '#/components/schemas/GameResult'
+        - in: query
+          name: dateFrom
+          required: false
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: dateTo
+          required: false
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: analyzed
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Пагинированный список партий
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageResponseGameDTO'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Недостаточно прав
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /games:
     post:
       tags: [Games]
       summary: Импорт партии из PGN
@@ -526,11 +607,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
 
-  /analysis/move:
+  /move-evaluations:
     post:
       tags: [Analysis]
-      summary: Анализ отдельного хода
-      description: Анализ одного хода в заданной позиции.
+      summary: Оценка отдельного хода
+      description: Создаёт оценку одного хода в заданной позиции.
       operationId: analyzeMove
       security:
         - bearerAuth: []
@@ -560,7 +641,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
 
-  /training/scenarios:
+  /users/me/training-scenarios:
     get:
       tags: [Training]
       summary: Сценарии тренировки текущего пользователя
@@ -587,7 +668,46 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
 
-  /training/scenarios/{scenarioId}:
+  /users/{userId}/training-scenarios:
+    get:
+      tags: [Training]
+      summary: Сценарии тренировки пользователя (админ)
+      operationId: listUserTrainingScenariosAdmin
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: completed
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Пагинированный список тренировочных сценариев
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageResponseTrainingScenarioDTO'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Недостаточно прав
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /training-scenarios/{scenarioId}:
     get:
       tags: [Training]
       summary: Получить тренировочный сценарий
@@ -621,7 +741,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
 
-  /training/move:
+  /training-scenarios/{scenarioId}/moves:
     post:
       tags: [Training]
       summary: Сделать ход в тренировочном сценарии
@@ -629,12 +749,19 @@ paths:
       operationId: submitTrainingMove
       security:
         - bearerAuth: []
+      parameters:
+        - in: path
+          name: scenarioId
+          required: true
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TrainingMoveRequest'
+              $ref: '#/components/schemas/TrainingMoveCommandDTO'
       responses:
         '200':
           description: Ответ тренировки
@@ -661,100 +788,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
 
-  /admin/users:
-    get:
-      tags: [Admin]
-      summary: "Список пользователей (админ)"
+  /user/me:
+    delete:
+      tags: [Users]
+      summary: Удаление (деактивация) текущего пользователя
+      operationId: deleteCurrentUser
       security:
         - bearerAuth: []
-      parameters:
-        - in: query
-          name: page
-          schema:
-            type: integer
-            format: int32
-            minimum: 0
-        - in: query
-          name: size
-          schema:
-            type: integer
-            format: int32
-            minimum: 1
-        - in: query
-          name: active
-          schema:
-            type: boolean
-        - in: query
-          name: roles
-          schema:
-            type: array
-            items:
-              $ref: '#/components/schemas/UserRole'
       responses:
-        '200':
-          description: "Пагинированный список пользователей"
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PageResponseAdminUserDTO'
+        '204':
+          description: Пользователь деактивирован
         '401':
           description: Не авторизован
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-        '403':
-          description: Нет прав (требуется ADMIN)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-    post:
-      tags: [Admin]
-      summary: Создать пользователя (админ)
-      operationId: adminCreateUser
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              allOf:
-                - $ref: '#/components/schemas/SignUpDTO'
-                - type: object
-                  properties:
-                    roles:
-                      type: array
-                      items:
-                        $ref: '#/components/schemas/UserRole'
-      responses:
-        '201':
-          description: Пользователь создан
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AdminUserDTO'
-        '400':
-          description: Некорректные данные
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-        '401':
-          description: Не авторизован
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-        '403':
-          description: Нет прав
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
 
-  /admin/users/{userId}:
+  /user/{userId}:
     parameters:
       - in: path
         name: userId
@@ -763,7 +814,7 @@ paths:
           type: string
           format: uuid
     get:
-      tags: [Admin]
+      tags: [Users]
       summary: Получить пользователя (админ)
       operationId: adminGetUser
       security:
@@ -794,7 +845,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
     patch:
-      tags: [Admin]
+      tags: [Users]
       summary: Частичное обновление пользователя (админ)
       description: Частичный UPDATE (смена ролей, почты, логина, активации).
       operationId: adminPatchUser
@@ -805,19 +856,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                login:
-                  type: string
-                email:
-                  type: string
-                  format: email
-                roles:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/UserRole'
-                active:
-                  type: boolean
+              $ref: '#/components/schemas/AdminPatchUserRequest'
       responses:
         '200':
           description: Обновлённый пользователь
@@ -850,8 +889,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
     delete:
-      tags: [Admin]
-      summary: Деактивировать пользователя (soft delete)
+      tags: [Users]
+      summary: Деактивировать пользователя (админ)
       description: Установка active=false вместо физического удаления.
       operationId: adminDeactivateUser
       security:
@@ -945,6 +984,21 @@ components:
     UserRole:
       type: string
       enum: [GUEST, USER, ADMIN]
+
+    AdminPatchUserRequest:
+      type: object
+      properties:
+        login:
+          type: string
+        email:
+          type: string
+          format: email
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserRole'
+        active:
+          type: boolean
 
     UserStatisticsDTO:
       type: object
@@ -1165,6 +1219,18 @@ components:
     TrainingMoveStatus:
       type: string
       enum: [CONTINUE, COMPLETED, INCORRECT]
+
+    TrainingMoveCommandDTO:
+      type: object
+      required: [cursor, moveUCI]
+      properties:
+        cursor:
+          type: integer
+        moveUCI:
+          type: string
+        isDemo:
+          type: boolean
+          default: false
 
     TrainingMoveRequest:
       type: object
