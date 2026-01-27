@@ -665,6 +665,8 @@ paths:
     get:
       tags: [Admin]
       summary: "Список пользователей (админ)"
+      security:
+        - bearerAuth: []
       parameters:
         - in: query
           name: page
