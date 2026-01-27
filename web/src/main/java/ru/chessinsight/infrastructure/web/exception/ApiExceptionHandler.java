@@ -2,6 +2,8 @@ package ru.chessinsight.infrastructure.web.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,6 +31,8 @@ import java.util.StringJoiner;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ProblemDetails> handleInvalidArgument(
@@ -142,19 +146,25 @@ public class ApiExceptionHandler {
             HttpServletRequest request
     ) {
         if (isReadOnlyViolation(ex)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(ProblemDetailsFactory.create(
-                            HttpStatus.FORBIDDEN,
-                            "Read-only replica: write operations are not allowed",
-                            request.getRequestURI()
-                    ));
+            log.warn("Read-only replica rejected write operation: uri={}", request.getRequestURI(), ex);
+            return readOnlyReplica(request);
         }
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ProblemDetailsFactory.create(
-                        HttpStatus.INTERNAL_SERVER_ERROR,
-                        "Database error",
-                        request.getRequestURI()
-                ));
+        log.error("Data access error: uri={}", request.getRequestURI(), ex);
+        return databaseError(request);
+    }
+
+    @ExceptionHandler(SQLException.class)
+    public ResponseEntity<ProblemDetails> handleSqlException(
+            SQLException ex,
+            HttpServletRequest request
+    ) {
+        if (isReadOnlyViolation(ex)) {
+            log.warn("Read-only replica rejected write operation: uri={}, sqlState={}",
+                    request.getRequestURI(), ex.getSQLState(), ex);
+            return readOnlyReplica(request);
+        }
+        log.error("SQL error: uri={}, sqlState={}", request.getRequestURI(), ex.getSQLState(), ex);
+        return databaseError(request);
     }
 
     @ExceptionHandler(Exception.class)
@@ -186,6 +196,24 @@ public class ApiExceptionHandler {
             current = current.getCause();
         }
         return false;
+    }
+
+    private ResponseEntity<ProblemDetails> readOnlyReplica(HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ProblemDetailsFactory.create(
+                        HttpStatus.SERVICE_UNAVAILABLE,
+                        "Database replica is read-only and cannot accept write operations",
+                        request.getRequestURI()
+                ));
+    }
+
+    private ResponseEntity<ProblemDetails> databaseError(HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ProblemDetailsFactory.create(
+                        HttpStatus.INTERNAL_SERVER_ERROR,
+                        "Database error",
+                        request.getRequestURI()
+                ));
     }
 
     private ResponseEntity<ProblemDetails> badRequest(String detail, HttpServletRequest request) {
