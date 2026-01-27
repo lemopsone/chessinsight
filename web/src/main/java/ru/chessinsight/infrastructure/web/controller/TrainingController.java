@@ -2,6 +2,7 @@ package ru.chessinsight.infrastructure.web.controller;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import ru.chessinsight.application.auth.service.AuthService;
@@ -39,6 +40,17 @@ public class TrainingController implements TrainingApi, ApiV1Controller {
 
         var scenarios = trainingService.getUserScenariosPage(userId, completed);
 
+        return ResponseEntity.ok(trainingApiMapper.toPageResponse(scenarios));
+    }
+
+    @Override
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/users/{userId}/training-scenarios")
+    public ResponseEntity<PageResponseTrainingScenarioDTO> listUserTrainingScenariosAdmin(
+            @PathVariable UUID userId,
+            @RequestParam(required = false) Boolean completed
+    ) {
+        var scenarios = trainingService.getUserScenariosPage(userId, completed);
         return ResponseEntity.ok(trainingApiMapper.toPageResponse(scenarios));
     }
 

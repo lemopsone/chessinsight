@@ -4,6 +4,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import ru.chessinsight.application.auth.service.AuthService;
@@ -64,7 +65,7 @@ public class GameController implements GamesApi, ApiV1Controller {
     }
 
     @Override
-    @PostMapping("/users/me/games")
+    @PostMapping("/games")
     public ResponseEntity<GameDTO> importGameFromPgn(
             @Valid @RequestBody GameCreateFromPgnRequest body
     ) {
@@ -84,6 +85,25 @@ public class GameController implements GamesApi, ApiV1Controller {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(gameApiMapper.toGameDto(game));
+    }
+
+    @Override
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/users/{userId}/games")
+    public ResponseEntity<PageResponseGameDTO> listUserGamesAdmin(
+            @PathVariable UUID userId,
+            @RequestParam(required = false) GameResult result,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
+            @RequestParam(required = false) Boolean analyzed
+    ) {
+        PageResponseGameDTO response = gameApiMapper.toPageResponse(
+                gameService.findUserGames(
+                        userId,
+                        gameApiMapper.toSearchCriteria(result, dateFrom, dateTo, analyzed)
+                )
+        );
+        return ResponseEntity.ok(response);
     }
 
     @Override

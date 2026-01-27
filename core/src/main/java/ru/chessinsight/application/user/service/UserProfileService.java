@@ -6,4 +6,6 @@ import java.util.UUID;
 
 public interface UserProfileService {
     User updateProfile(UUID userId, String email, String password);
+
+    void deactivateUser(UUID userId);
 }

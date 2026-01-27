@@ -88,6 +88,6 @@ run_wrk() {
 }
 
 run_wrk "GET /api/v1/users/me/training-scenarios?completed=true" "reports/wrk-get.lua" "$BASE_URL/api/v1/users/me/training-scenarios?completed=true"
-run_wrk "POST /api/v1/users/me/games (invalid body)" "reports/wrk-post-bad.lua" "$BASE_URL/api/v1/users/me/games"
+run_wrk "POST /api/v1/games (invalid body)" "reports/wrk-post-bad.lua" "$BASE_URL/api/v1/games"
 
 echo "Report saved to $OUT"

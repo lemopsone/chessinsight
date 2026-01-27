@@ -149,7 +149,7 @@ public class WebApiClient {
 
         try {
             return restClient.post()
-                    .uri("/users/me/games")
+                    .uri("/games")
                     .headers(this::applyAuth)
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
