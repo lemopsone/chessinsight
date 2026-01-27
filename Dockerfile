@@ -1,11 +1,11 @@
 FROM eclipse-temurin:24-jdk AS build
 
 RUN apt-get update && apt-get install -y wget git build-essential cmake \
-    && wget https://downloads.apache.org/maven/maven-3/3.9.11/binaries/apache-maven-3.9.11-bin.tar.gz \
-    && tar -xzf apache-maven-3.9.11-bin.tar.gz -C /opt \
-    && ln -s /opt/apache-maven-3.9.11 /opt/maven \
+    && wget https://downloads.apache.org/maven/maven-3/3.9.12/binaries/apache-maven-3.9.12-bin.tar.gz \
+    && tar -xzf apache-maven-3.9.12-bin.tar.gz -C /opt \
+    && ln -s /opt/apache-maven-3.9.12 /opt/maven \
     && ln -s /opt/maven/bin/mvn /usr/bin/mvn \
-    && rm apache-maven-3.9.11-bin.tar.gz
+    && rm apache-maven-3.9.12-bin.tar.gz
 
 WORKDIR /build
 COPY pom.xml .
