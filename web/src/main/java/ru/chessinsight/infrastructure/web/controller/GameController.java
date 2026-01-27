@@ -7,7 +7,6 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import ru.chessinsight.application.auth.service.AuthService;
-import ru.chessinsight.application.game.analysis.service.GameAnalysisWorkflowService;
 import ru.chessinsight.application.game.dto.GameMetadataDTO;
 import ru.chessinsight.application.game.exception.GameNotFoundException;
 import ru.chessinsight.application.game.service.GameImportService;
@@ -20,7 +19,6 @@ import ru.chessinsight.infrastructure.web.dto.GameResult;
 import ru.chessinsight.infrastructure.web.dto.PageResponseGameDTO;
 import ru.chessinsight.infrastructure.web.dto.PatchGameRequest;
 import ru.chessinsight.infrastructure.web.dto.ReplaceGameRequest;
-import ru.chessinsight.infrastructure.web.mapper.AnalysisApiMapper;
 import ru.chessinsight.infrastructure.web.mapper.GameApiMapper;
 
 import java.time.LocalDate;
@@ -33,25 +31,19 @@ public class GameController implements GamesApi, ApiV1Controller {
     private final GameService gameService;
     private final GameImportService gameImportService;
     private final GameApiMapper gameApiMapper;
-    private final GameAnalysisWorkflowService gameAnalysisWorkflowService;
-    private final AnalysisApiMapper analysisApiMapper;
 
     public GameController(AuthService authService,
                           GameService gameService,
                           GameImportService gameImportService,
-                          GameApiMapper gameApiMapper,
-                          GameAnalysisWorkflowService gameAnalysisWorkflowService,
-                          AnalysisApiMapper analysisApiMapper) {
+                          GameApiMapper gameApiMapper) {
         this.authService = authService;
         this.gameService = gameService;
         this.gameImportService = gameImportService;
         this.gameApiMapper = gameApiMapper;
-        this.gameAnalysisWorkflowService = gameAnalysisWorkflowService;
-        this.analysisApiMapper = analysisApiMapper;
     }
 
     @Override
-    @GetMapping("/games")
+    @GetMapping("/users/me/games")
     public ResponseEntity<PageResponseGameDTO> listMyGames(
             @RequestParam(required = false) GameResult result,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
@@ -72,7 +64,7 @@ public class GameController implements GamesApi, ApiV1Controller {
     }
 
     @Override
-    @PostMapping("/games")
+    @PostMapping("/users/me/games")
     public ResponseEntity<GameDTO> importGameFromPgn(
             @Valid @RequestBody GameCreateFromPgnRequest body
     ) {
@@ -92,15 +84,6 @@ public class GameController implements GamesApi, ApiV1Controller {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(gameApiMapper.toGameDto(game));
-    }
-
-    @Override
-    @PostMapping("/games/{gameId}/analysis")
-    public ResponseEntity<ru.chessinsight.infrastructure.web.dto.GameAnalysisDTO> analyzeGame(
-            @PathVariable UUID gameId
-    ) {
-        var dto = gameAnalysisWorkflowService.analyzeGame(gameId);
-        return ResponseEntity.ok(analysisApiMapper.toApiGameAnalysis(dto));
     }
 
     @Override

@@ -9,29 +9,25 @@ import ru.chessinsight.application.auth.exception.AuthException;
 import ru.chessinsight.application.auth.exception.UserExistsException;
 import ru.chessinsight.application.auth.exception.WrongCredentialsException;
 import ru.chessinsight.application.auth.service.AuthService;
-import ru.chessinsight.domain.user.model.User;
 import ru.chessinsight.infrastructure.web.api.AuthApi;
-import ru.chessinsight.infrastructure.web.dto.RefreshTokenRequest;
 import ru.chessinsight.infrastructure.web.dto.SignInDTO;
+import ru.chessinsight.infrastructure.web.dto.SignOutRequest;
 import ru.chessinsight.infrastructure.web.dto.SignUpDTO;
 import ru.chessinsight.infrastructure.web.mapper.AuthApiMapper;
-import ru.chessinsight.infrastructure.web.mapper.UserApiMapper;
 
 @RestController
 public class AuthController implements AuthApi, ApiV1Controller {
 
     private final AuthService authService;
     private final AuthApiMapper authApiMapper;
-    private final UserApiMapper userApiMapper;
 
-    public AuthController(AuthService authService, AuthApiMapper authApiMapper, UserApiMapper userApiMapper) {
+    public AuthController(AuthService authService, AuthApiMapper authApiMapper) {
         this.authService = authService;
         this.authApiMapper = authApiMapper;
-        this.userApiMapper = userApiMapper;
     }
 
     @Override
-    @PostMapping("/auth/signup")
+    @PostMapping("/users")
     public ResponseEntity<ru.chessinsight.infrastructure.web.dto.UserTokenDTO> signUp(
             @Valid @RequestBody SignUpDTO body
     ) throws UserExistsException {
@@ -43,7 +39,7 @@ public class AuthController implements AuthApi, ApiV1Controller {
     }
 
     @Override
-    @PostMapping("/auth/signin")
+    @PostMapping("/auth/sessions")
     public ResponseEntity<ru.chessinsight.infrastructure.web.dto.UserTokenDTO> signIn(
             @Valid @RequestBody SignInDTO body
     ) throws WrongCredentialsException, AuthException {
@@ -53,26 +49,18 @@ public class AuthController implements AuthApi, ApiV1Controller {
     }
 
     @Override
-    @PostMapping("/auth/refresh")
+    @PostMapping("/auth/tokens")
     public ResponseEntity<ru.chessinsight.infrastructure.web.dto.UserTokenDTO> refreshToken(
-            @Valid @RequestBody RefreshTokenRequest body
+            @Valid @RequestBody SignOutRequest body
     ) throws AuthException {
         UserTokenDTO token = authService.refresh(body.getRefreshToken());
         return ResponseEntity.ok(authApiMapper.toApiUserToken(token));
     }
 
     @Override
-    @PostMapping("/auth/signout")
-    public ResponseEntity<Void> signOut(@Valid @RequestBody RefreshTokenRequest body) {
+    @DeleteMapping("/auth/sessions")
+    public ResponseEntity<Void> signOut(@Valid @RequestBody SignOutRequest body) {
         authService.signOut(body.getRefreshToken());
         return ResponseEntity.noContent().build();
-    }
-
-    @Override
-    @GetMapping("/auth/me")
-    public ResponseEntity<ru.chessinsight.infrastructure.web.dto.UserDTO> getCurrentUserAuth() {
-        User user = authService.getCurrentUser()
-                .orElseThrow(() -> new org.springframework.security.access.AccessDeniedException("Not authenticated"));
-        return ResponseEntity.ok(userApiMapper.toUserDto(user));
     }
 }

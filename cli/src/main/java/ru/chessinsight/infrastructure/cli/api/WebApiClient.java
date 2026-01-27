@@ -40,7 +40,7 @@ public class WebApiClient {
         );
         try {
             return restClient.post()
-                    .uri("/auth/signup")
+                    .uri("/users")
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
                     .body(body)
@@ -59,7 +59,7 @@ public class WebApiClient {
         );
         try {
             ApiUserToken token = restClient.post()
-                    .uri("/auth/signin")
+                    .uri("/auth/sessions")
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
                     .body(body)
@@ -83,11 +83,16 @@ public class WebApiClient {
     public void signOut() {
         if (!session.isAuthenticated()) return;
         try {
-            restClient.post()
-                    .uri("/auth/signout")
-                    .headers(this::applyAuth)
-                    .retrieve()
-                    .toBodilessEntity();
+            String refreshToken = session.getRefreshToken();
+            if (refreshToken != null && !refreshToken.isBlank()) {
+                restClient.method(HttpMethod.DELETE)
+                        .uri("/auth/sessions")
+                        .headers(this::applyAuth)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(Map.of("refreshToken", refreshToken))
+                        .retrieve()
+                        .toBodilessEntity();
+            }
         } catch (HttpStatusCodeException e) {
             // игнорируем
         } finally {
@@ -101,7 +106,7 @@ public class WebApiClient {
         }
         try {
             return restClient.get()
-                    .uri("/auth/me")
+                    .uri("/users/me")
                     .headers(this::applyAuth)
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
@@ -120,7 +125,7 @@ public class WebApiClient {
         try {
             return restClient.get()
                     .uri(uriBuilder -> uriBuilder
-                            .path("/games")
+                            .path("/users/me/games")
                             .queryParam("page", page != null ? page : 0)
                             .queryParam("size", size != null ? size : 20)
                             .build())
@@ -144,7 +149,7 @@ public class WebApiClient {
 
         try {
             return restClient.post()
-                    .uri("/games")
+                    .uri("/users/me/games")
                     .headers(this::applyAuth)
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
@@ -184,7 +189,7 @@ public class WebApiClient {
 
         try {
             return restClient.post()
-                    .uri("/analysis/move")
+                    .uri("/move-evaluations")
                     .headers(this::applyAuth)
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
@@ -205,7 +210,7 @@ public class WebApiClient {
         try {
             return restClient.get()
                     .uri(uriBuilder -> {
-                        var b = uriBuilder.path("/training/scenarios")
+                        var b = uriBuilder.path("/users/me/training-scenarios")
                                 .queryParam("page", page != null ? page : 0)
                                 .queryParam("size", size != null ? size : 20);
                         if (completed != null) {
@@ -228,7 +233,7 @@ public class WebApiClient {
         }
         try {
             return restClient.get()
-                    .uri("/training/scenarios/{id}", scenarioId)
+                    .uri("/training-scenarios/{id}", scenarioId)
                     .headers(this::applyAuth)
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
@@ -243,14 +248,13 @@ public class WebApiClient {
             throw new CliAuthRequiredException();
         }
         var body = new java.util.HashMap<String, Object>();
-        body.put("scenarioId", scenarioId);
         if (cursor != null) body.put("cursor", cursor);
         body.put("moveUCI", moveUci);
         body.put("isDemo", demo);
 
         try {
             return restClient.post()
-                    .uri("/training/move")
+                    .uri("/training-scenarios/{id}/moves", scenarioId)
                     .headers(this::applyAuth)
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)

@@ -62,6 +62,20 @@ public class TrainingApiMapper {
         );
     }
 
+    public TrainingMoveRequest toAppRequest(
+            ru.chessinsight.infrastructure.web.dto.TrainingMoveCommandDTO dto,
+            UUID scenarioId,
+            UUID userId
+    ) {
+        boolean isDemo = dto.getIsDemo() != null && dto.getIsDemo();
+        return new TrainingMoveRequest(
+                scenarioId,
+                dto.getCursor(),
+                dto.getMoveUCI(),
+                isDemo
+        );
+    }
+
     public ru.chessinsight.infrastructure.web.dto.TrainingMoveResponse toApiResponse(
             TrainingMoveResponse resp
     ) {

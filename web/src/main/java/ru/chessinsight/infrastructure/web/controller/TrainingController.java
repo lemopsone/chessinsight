@@ -30,7 +30,7 @@ public class TrainingController implements TrainingApi, ApiV1Controller {
     }
 
     @Override
-    @GetMapping("/training/scenarios")
+    @GetMapping("/users/me/training-scenarios")
     public ResponseEntity<PageResponseTrainingScenarioDTO> listMyTrainingScenarios(
             @RequestParam(required = false) Boolean completed
     ) {
@@ -43,7 +43,7 @@ public class TrainingController implements TrainingApi, ApiV1Controller {
     }
 
     @Override
-    @GetMapping("/training/scenarios/{scenarioId}")
+    @GetMapping("/training-scenarios/{scenarioId}")
     public ResponseEntity<TrainingScenarioDTO> getTrainingScenario(@PathVariable UUID scenarioId) {
         var scenario = trainingService.getScenarioById(scenarioId)
                 .orElseThrow(() -> new ScenarioNotFoundException("Scenario not found"));
@@ -51,14 +51,15 @@ public class TrainingController implements TrainingApi, ApiV1Controller {
     }
 
     @Override
-    @PostMapping("/training/move")
+    @PostMapping("/training-scenarios/{scenarioId}/moves")
     public ResponseEntity<ru.chessinsight.infrastructure.web.dto.TrainingMoveResponse> submitTrainingMove(
-            @Valid @RequestBody ru.chessinsight.infrastructure.web.dto.TrainingMoveRequest body
+            @PathVariable UUID scenarioId,
+            @Valid @RequestBody ru.chessinsight.infrastructure.web.dto.TrainingMoveCommandDTO body
     ) {
         UUID userId = authService.getCurrentUserId()
                 .orElseThrow(() -> new AccessDeniedException("Not authenticated"));
 
-        TrainingMoveRequest req = trainingApiMapper.toAppRequest(body, userId);
+        TrainingMoveRequest req = trainingApiMapper.toAppRequest(body, scenarioId, userId);
         TrainingMoveResponse resp = trainingService.submitMove(userId, req);
         return ResponseEntity.ok(trainingApiMapper.toApiResponse(resp));
     }
