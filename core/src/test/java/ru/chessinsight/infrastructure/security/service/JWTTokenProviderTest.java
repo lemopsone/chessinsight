@@ -3,9 +3,11 @@ package ru.chessinsight.infrastructure.security.service;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
+import org.junit.jupiter.api.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@Tag("unit")
 class JWTTokenProviderTest {
     private final JWTTokenProvider provider = new JWTTokenProvider("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
 

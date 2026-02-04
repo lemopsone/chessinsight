@@ -9,9 +9,11 @@ import ru.chessinsight.domain.chess.position.model.BoardCoordinates;
 import ru.chessinsight.domain.chess.position.model.Chessboard;
 
 import java.util.List;
+import org.junit.jupiter.api.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@Tag("unit")
 class MoveGeneratorTest {
 
     @Test

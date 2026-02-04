@@ -9,7 +9,9 @@ import ru.chessinsight.domain.user.model.UserStatistics;
 import ru.chessinsight.domain.user.repository.UserRepository;
 
 import java.util.EnumSet;
+import org.junit.jupiter.api.Tag;
 
+@Tag("integration")
 public class UserRepositoryIT extends AbstractIntegrationTest {
 
     @Autowired

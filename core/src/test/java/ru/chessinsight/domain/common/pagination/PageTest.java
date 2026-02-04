@@ -3,9 +3,11 @@ package ru.chessinsight.domain.common.pagination;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import org.junit.jupiter.api.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@Tag("unit")
 class PageTest {
 
     @Test

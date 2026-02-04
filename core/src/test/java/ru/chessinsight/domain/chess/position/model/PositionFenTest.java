@@ -2,8 +2,10 @@ package ru.chessinsight.domain.chess.position.model;
 
 import org.junit.jupiter.api.Test;
 import ru.chessinsight.domain.chess.piece.model.Color;
+import org.junit.jupiter.api.Tag;
 import static org.junit.jupiter.api.Assertions.*;
 
+@Tag("unit")
 public class PositionFenTest {
 
     @Test

@@ -6,9 +6,11 @@ import ru.chessinsight.domain.chess.move.model.MoveKind;
 import ru.chessinsight.domain.chess.move.notation.service.UciNotationService;
 import ru.chessinsight.domain.chess.move.service.MoveMaker;
 import ru.chessinsight.domain.chess.position.model.Position;
+import org.junit.jupiter.api.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@Tag("unit")
 public class EnPassantTest {
 
     @Test

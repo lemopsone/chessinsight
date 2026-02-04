@@ -6,9 +6,11 @@ import ru.chessinsight.infrastructure.persistence.jpa.model.GameAnalysisEntity;
 import ru.chessinsight.testdata.GameAnalysisEntityBuilder;
 
 import java.time.OffsetDateTime;
+import org.junit.jupiter.api.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@Tag("unit")
 class GameAnalysisMapperTest {
     private final GameAnalysisMapper mapper = new GameAnalysisMapper();
 

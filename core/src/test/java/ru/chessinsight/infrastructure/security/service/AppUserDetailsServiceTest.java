@@ -14,10 +14,12 @@ import ru.chessinsight.testdata.UserBuilder;
 
 import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
 
+@Tag("unit")
 @ExtendWith(MockitoExtension.class)
 class AppUserDetailsServiceTest {
     @Mock

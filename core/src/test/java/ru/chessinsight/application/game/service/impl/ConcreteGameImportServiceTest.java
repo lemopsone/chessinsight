@@ -11,11 +11,13 @@ import ru.chessinsight.domain.game.model.Game;
 import ru.chessinsight.domain.game.repository.GameRepository;
 
 import java.util.UUID;
+import org.junit.jupiter.api.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+@Tag("unit")
 @ExtendWith(MockitoExtension.class)
 class ConcreteGameImportServiceTest {
     @Mock

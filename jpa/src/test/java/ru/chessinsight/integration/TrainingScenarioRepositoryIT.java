@@ -13,7 +13,9 @@ import ru.chessinsight.domain.user.repository.UserRepository;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import org.junit.jupiter.api.Tag;
 
+@Tag("integration")
 public class TrainingScenarioRepositoryIT extends AbstractIntegrationTest {
 
     @Autowired

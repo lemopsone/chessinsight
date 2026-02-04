@@ -2,8 +2,10 @@ package ru.chessinsight.domain.game.notation.service.pgn.utils;
 
 import org.junit.jupiter.api.Test;
 import java.util.List;
+import org.junit.jupiter.api.Tag;
 import static org.junit.jupiter.api.Assertions.*;
 
+@Tag("unit")
 public class PgnTokenizerTest {
     @Test
     void tokenizes_tags_moves_comments_nags_result() {

@@ -9,9 +9,11 @@ import ru.chessinsight.domain.user.repository.UserRepository;
 import ru.chessinsight.infrastructure.security.service.PasswordHasher;
 
 import java.util.UUID;
+import org.junit.jupiter.api.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@Tag("integration")
 public class UserProfileServiceIT extends AbstractIntegrationTest {
 
     @Autowired

@@ -5,9 +5,11 @@ import ru.chessinsight.domain.chess.move.model.Move;
 import ru.chessinsight.domain.chess.move.model.MoveKind;
 import ru.chessinsight.domain.chess.position.model.Position;
 import ru.chessinsight.domain.exception.DomainException;
+import org.junit.jupiter.api.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@Tag("unit")
 public class UciNotationServiceTest {
     private final UciNotationService uci = new UciNotationService();
 
