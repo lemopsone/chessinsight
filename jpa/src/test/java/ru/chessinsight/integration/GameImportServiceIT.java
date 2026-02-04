@@ -11,7 +11,7 @@ import ru.chessinsight.domain.user.model.User;
 import ru.chessinsight.domain.user.repository.UserRepository;
 
 import java.util.UUID;
-import io.qameta.allure.Tag;
+import ru.chessinsight.testutil.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 

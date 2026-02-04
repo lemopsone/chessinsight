@@ -2,7 +2,7 @@ package ru.chessinsight.application.game.analysis.service.impl;
 
 import org.junit.jupiter.api.Test;
 import ru.chessinsight.application.game.analysis.model.MoveCategory;
-import io.qameta.allure.Tag;
+import ru.chessinsight.testutil.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 

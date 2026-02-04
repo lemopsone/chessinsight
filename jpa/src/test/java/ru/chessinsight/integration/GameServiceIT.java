@@ -17,7 +17,7 @@ import ru.chessinsight.testdata.GameBuilder;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
-import io.qameta.allure.Tag;
+import ru.chessinsight.testutil.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 

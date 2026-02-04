@@ -9,7 +9,7 @@ import ru.chessinsight.domain.user.repository.UserRepository;
 import ru.chessinsight.infrastructure.security.service.PasswordHasher;
 
 import java.util.UUID;
-import io.qameta.allure.Tag;
+import ru.chessinsight.testutil.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 

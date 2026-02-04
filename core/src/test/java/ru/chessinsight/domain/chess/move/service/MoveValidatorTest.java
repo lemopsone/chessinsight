@@ -7,7 +7,7 @@ import ru.chessinsight.domain.chess.position.model.BoardCoordinates;
 import ru.chessinsight.domain.chess.position.model.Position;
 
 import java.util.List;
-import io.qameta.allure.Tag;
+import ru.chessinsight.testutil.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 

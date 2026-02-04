@@ -8,7 +8,7 @@ import ru.chessinsight.testdata.UserBuilder;
 import ru.chessinsight.testdata.UserMother;
 
 import java.util.UUID;
-import io.qameta.allure.Tag;
+import ru.chessinsight.testutil.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 

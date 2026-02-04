@@ -8,7 +8,7 @@ import ru.chessinsight.infrastructure.persistence.jpa.model.GameMoveEntity;
 import ru.chessinsight.testdata.GameMoveEntityBuilder;
 
 import java.util.UUID;
-import io.qameta.allure.Tag;
+import ru.chessinsight.testutil.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 

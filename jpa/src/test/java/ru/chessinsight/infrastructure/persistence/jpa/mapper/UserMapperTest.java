@@ -11,7 +11,7 @@ import ru.chessinsight.testdata.UserEntityMother;
 import java.util.EnumSet;
 import java.util.Set;
 import java.util.UUID;
-import io.qameta.allure.Tag;
+import ru.chessinsight.testutil.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 

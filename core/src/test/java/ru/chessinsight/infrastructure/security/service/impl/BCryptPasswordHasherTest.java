@@ -1,7 +1,7 @@
 package ru.chessinsight.infrastructure.security.service.impl;
 
 import org.junit.jupiter.api.Test;
-import io.qameta.allure.Tag;
+import ru.chessinsight.testutil.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 

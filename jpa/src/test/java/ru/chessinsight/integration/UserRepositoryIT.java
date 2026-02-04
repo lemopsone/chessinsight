@@ -9,7 +9,7 @@ import ru.chessinsight.domain.user.model.UserStatistics;
 import ru.chessinsight.domain.user.repository.UserRepository;
 
 import java.util.EnumSet;
-import io.qameta.allure.Tag;
+import ru.chessinsight.testutil.Tag;
 
 @Tag("integration")
 public class UserRepositoryIT extends AbstractIntegrationTest {
