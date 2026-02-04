@@ -126,6 +126,10 @@
                     <systemPropertyVariables>
                         <allure.results.directory>${project.build.directory}/allure-results</allure.results.directory>
                         <net.bytebuddy.experimental>true</net.bytebuddy.experimental>
+                        <java.io.tmpdir>${project.build.directory}</java.io.tmpdir>
+                        <jna.tmpdir>${project.build.directory}</jna.tmpdir>
+                        <testcontainers.tmpdir>${project.build.directory}</testcontainers.tmpdir>
+                        <api.version>1.44</api.version>
                     </systemPropertyVariables>
                     <includes>
                         <include>**/*E2EIT.java</include>

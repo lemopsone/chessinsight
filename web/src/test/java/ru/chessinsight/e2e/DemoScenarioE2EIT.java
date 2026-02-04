@@ -37,7 +37,7 @@ public class DemoScenarioE2EIT extends AbstractWebIntegrationTest {
         signUp.put("email", login + "@example.com");
         signUp.put("password", "pass12345");
 
-        ResponseEntity<String> signUpResp = restTemplate.postForEntity(url("/v1/users"), signUp, String.class);
+        ResponseEntity<String> signUpResp = restTemplate.postForEntity(url("/api/v1/users"), signUp, String.class);
         assertEquals(HttpStatus.CREATED, signUpResp.getStatusCode());
         JsonNode signUpJson = objectMapper.readTree(signUpResp.getBody());
         String accessToken = signUpJson.path("accessToken").asText();
@@ -60,7 +60,7 @@ public class DemoScenarioE2EIT extends AbstractWebIntegrationTest {
         importReq.put("pgn", pgn);
 
         ResponseEntity<String> importResp = restTemplate.exchange(
-                url("/v1/games"),
+                url("/api/v1/games"),
                 HttpMethod.POST,
                 new HttpEntity<>(importReq, headers),
                 String.class
@@ -71,7 +71,7 @@ public class DemoScenarioE2EIT extends AbstractWebIntegrationTest {
         assertFalse(gameId.isBlank());
 
         ResponseEntity<String> listResp = restTemplate.exchange(
-                url("/v1/users/me/games"),
+                url("/api/v1/users/me/games"),
                 HttpMethod.GET,
                 new HttpEntity<>(headers),
                 String.class
@@ -83,7 +83,7 @@ public class DemoScenarioE2EIT extends AbstractWebIntegrationTest {
         assertTrue(found);
 
         ResponseEntity<String> getResp = restTemplate.exchange(
-                url("/v1/games/" + gameId),
+                url("/api/v1/games/" + gameId),
                 HttpMethod.GET,
                 new HttpEntity<>(headers),
                 String.class
@@ -91,7 +91,7 @@ public class DemoScenarioE2EIT extends AbstractWebIntegrationTest {
         assertEquals(HttpStatus.OK, getResp.getStatusCode());
 
         ResponseEntity<Void> deleteResp = restTemplate.exchange(
-                url("/v1/games/" + gameId),
+                url("/api/v1/games/" + gameId),
                 HttpMethod.DELETE,
                 new HttpEntity<>(headers),
                 Void.class

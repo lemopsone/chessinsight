@@ -11,7 +11,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: mkdir -p ci-reports
       - run: docker build -f ci/test-runner.Dockerfile -t chessinsight-tests:${{ github.sha }} .
-      - run: docker run --rm -e TEST_STAGE=unit -e REPO_URL=https://github.com/${{ github.repository }} -e REPO_REF=${{ github.sha }} -e RESULTS_DIR=/reports -v ${{ github.workspace }}/ci-reports:/reports chessinsight-tests:${{ github.sha }}
+      - run: docker run --rm -e TEST_STAGE=unit -e REPO_URL=https://github.com/${{ github.repository }} -e REPO_REF=${{ github.sha }} -e RESULTS_DIR=/reports -e DOCKER_HOST=unix:///var/run/docker.sock -v /var/run/docker.sock:/var/run/docker.sock -v ${{ github.workspace }}/ci-reports:/reports chessinsight-tests:${{ github.sha }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: mkdir -p ci-reports
       - run: docker build -f ci/test-runner.Dockerfile -t chessinsight-tests:${{ github.sha }} .
-      - run: docker run --rm -e TEST_STAGE=integration -e REPO_URL=https://github.com/${{ github.repository }} -e REPO_REF=${{ github.sha }} -e RESULTS_DIR=/reports -v ${{ github.workspace }}/ci-reports:/reports chessinsight-tests:${{ github.sha }}
+      - run: docker run --rm -e TEST_STAGE=integration -e REPO_URL=https://github.com/${{ github.repository }} -e REPO_REF=${{ github.sha }} -e RESULTS_DIR=/reports -e DOCKER_HOST=unix:///var/run/docker.sock -v /var/run/docker.sock:/var/run/docker.sock -v ${{ github.workspace }}/ci-reports:/reports chessinsight-tests:${{ github.sha }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -39,7 +39,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: mkdir -p ci-reports
       - run: docker build -f ci/test-runner.Dockerfile -t chessinsight-tests:${{ github.sha }} .
-      - run: docker run --rm -e TEST_STAGE=e2e -e REPO_URL=https://github.com/${{ github.repository }} -e REPO_REF=${{ github.sha }} -e RESULTS_DIR=/reports -v ${{ github.workspace }}/ci-reports:/reports chessinsight-tests:${{ github.sha }}
+      - run: docker run --rm -e TEST_STAGE=e2e -e REPO_URL=https://github.com/${{ github.repository }} -e REPO_REF=${{ github.sha }} -e RESULTS_DIR=/reports -e DOCKER_HOST=unix:///var/run/docker.sock -v /var/run/docker.sock:/var/run/docker.sock -v ${{ github.workspace }}/ci-reports:/reports chessinsight-tests:${{ github.sha }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -64,7 +64,7 @@ jobs:
           path: ci-reports
           merge-multiple: true
       - run: docker build -f ci/test-runner.Dockerfile -t chessinsight-tests:${{ github.sha }} .
-      - run: docker run --rm -e TEST_STAGE=report -e REPO_URL=https://github.com/${{ github.repository }} -e REPO_REF=${{ github.sha }} -e RESULTS_DIR=/reports -v ${{ github.workspace }}/ci-reports:/reports chessinsight-tests:${{ github.sha }}
+      - run: docker run --rm -e TEST_STAGE=report -e REPO_URL=https://github.com/${{ github.repository }} -e REPO_REF=${{ github.sha }} -e RESULTS_DIR=/reports -e DOCKER_HOST=unix:///var/run/docker.sock -v /var/run/docker.sock:/var/run/docker.sock -v ${{ github.workspace }}/ci-reports:/reports chessinsight-tests:${{ github.sha }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:

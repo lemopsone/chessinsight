@@ -46,7 +46,7 @@ public class WebContainerTestConfig {
             @Override
             public EnginePositionAnalysis analyzePosition(EngineAnalysisRequest request) {
                 return new EnginePositionAnalysis(
-                        request.fen(),
+                        request.positionFEN(),
                         request.depth(),
                         null,
                         "e2e4",
@@ -62,9 +62,9 @@ public class WebContainerTestConfig {
             @Override
             public EngineMoveAnalysis analyzeMove(EngineMoveRequest request) {
                 return new EngineMoveAnalysis(
-                        request.fen(),
+                        request.positionFEN(),
                         request.playedMoveUci(),
-                        request.playedMoveSan(),
+                        null,
                         0,
                         null,
                         "e2e4",

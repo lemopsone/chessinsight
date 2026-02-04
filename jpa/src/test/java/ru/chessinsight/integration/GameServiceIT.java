@@ -138,6 +138,7 @@ public class GameServiceIT extends AbstractIntegrationTest {
 
     private Game saveGame(UUID userId, GameResult result, LocalDate date) {
         Game game = GameBuilder.game()
+                .withId(null)
                 .withUserId(userId)
                 .withEvent("Event")
                 .withSite("Site")
