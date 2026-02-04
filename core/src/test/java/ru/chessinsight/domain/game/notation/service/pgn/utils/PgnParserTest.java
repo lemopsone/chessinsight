@@ -24,4 +24,13 @@ public class PgnParserTest {
         assertFalse(ast.mainline.get(1).variations.getFirst().isEmpty());
         assertEquals("c5", ast.mainline.get(1).variations.getFirst().getFirst().san);
     }
+
+    @Test
+    void parse_setsDefaultResult_whenMissing() {
+        String pgn = "1. e4 e5 2. Nf3 Nc6";
+        PgnAst ast = PgnParser.parse(pgn);
+
+        assertEquals("*", ast.result);
+        assertEquals(4, ast.mainline.size());
+    }
 }
