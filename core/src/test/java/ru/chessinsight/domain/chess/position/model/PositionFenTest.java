@@ -19,6 +19,6 @@ public class PositionFenTest {
     @Test
     void invalid_fen_throws() {
         assertThrows(RuntimeException.class, () -> Position.fromFEN("bad fen"));
-        assertThrows(RuntimeException.class, () -> Position.fromFEN("8/8/8/8/8/8/8/8 w - - 0")); // too few fields
+        assertThrows(RuntimeException.class, () -> Position.fromFEN("8/8/8/8/8/8/8/8 w - - 0"));
     }
 }

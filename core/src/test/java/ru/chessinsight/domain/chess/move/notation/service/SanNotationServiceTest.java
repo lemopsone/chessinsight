@@ -86,4 +86,16 @@ public class SanNotationServiceTest {
         Move actual = san.sanToMove("Ne2", pos);
         assertEquals(expected, actual);
     }
+
+    @Test
+    void letterOf_returnsPieceLetter() {
+        assertEquals("N", SanNotationService.letterOf("Knight"));
+        assertEquals("Q", SanNotationService.letterOf("Queen"));
+    }
+
+    @Test
+    void letterOf_returnsEmpty_forUnknownOrNull() {
+        assertEquals("", SanNotationService.letterOf("Dragon"));
+        assertEquals("", SanNotationService.letterOf(null));
+    }
 }
