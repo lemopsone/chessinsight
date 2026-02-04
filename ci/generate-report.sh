@@ -25,8 +25,8 @@ label_stage() {
     jq --arg stage "$stage" '
       .labels = (
         (.labels // [])
-        | if any(.name=="tag" and .value==$stage) then .
-          else . + [{"name":"tag","value":$stage}]
+        | if any(.name=="parentSuite" and .value==$stage) then .
+          else . + [{"name":"parentSuite","value":$stage}]
           end
       )
     ' "$file" > "$tmp" && mv "$tmp" "$file"
@@ -47,7 +47,7 @@ for stage in unit integration e2e; do
     TS=$(date +%s%3N)
     UUID_VAL=$(cat /proc/sys/kernel/random/uuid)
     cat > "$OUT_RESULTS/${stage}-skipped-${UUID_VAL}-result.json" <<EOF
-{"uuid":"$UUID_VAL","name":"$stage stage skipped","status":"skipped","stage":"finished","start":$TS,"stop":$TS,"labels":[{"name":"tag","value":"$stage"}]}
+{"uuid":"$UUID_VAL","name":"$stage stage skipped","status":"skipped","stage":"finished","start":$TS,"stop":$TS,"labels":[{"name":"parentSuite","value":"$stage"}]}
 EOF
   fi
 done
