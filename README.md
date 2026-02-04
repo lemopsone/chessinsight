@@ -85,3 +85,19 @@ ChessInsight также включает режим тренировки,
 ![BPMN диаграмма анализа партии](assets/readme/bpmn.svg)
 
 ![ВPMN диаграмма использования тренажера](assets/readme/bpmn2.svg)
+
+# 11. Запуск тестов и отчет
+
+```bash
+mvn -pl core,jpa -am test
+```
+
+```bash
+mvn -pl core,jpa -am allure:report
+```
+
+Отчеты Allure:
+
+`core/target/site/allure-maven-plugin`
+
+`jpa/target/site/allure-maven-plugin`

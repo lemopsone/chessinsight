@@ -13,7 +13,6 @@
     <packaging>jar</packaging>
 
     <dependencies>
-        <!-- Your Spring + infra dependencies go here -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter</artifactId>
@@ -46,6 +45,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.qameta.allure</groupId>
+            <artifactId>allure-junit5</artifactId>
+            <version>${allure.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -138,6 +143,10 @@
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <version>3.2.5</version>
                 <configuration>
+                    <systemPropertyVariables>
+                        <allure.results.directory>${project.build.directory}/allure-results</allure.results.directory>
+                        <net.bytebuddy.experimental>true</net.bytebuddy.experimental>
+                    </systemPropertyVariables>
                     <includes>
                         <include>**/*IT.java</include>
                         <include>**/*ITCase.java</include>

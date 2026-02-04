@@ -41,3 +41,6 @@ build/
 **/downloads/**
 
 **/nginx/generated/
+
+**/.allure/**
+**/.idea/**
