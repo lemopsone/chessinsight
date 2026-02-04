@@ -4,7 +4,7 @@ import org.junit.jupiter.api.Test;
 import ru.chessinsight.application.game.analysis.model.MoveCategory;
 import ru.chessinsight.application.game.dto.MoveAnalysisDTO;
 import ru.chessinsight.application.game.dto.MoveDTO;
-import org.junit.jupiter.api.Tag;
+import io.qameta.allure.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 

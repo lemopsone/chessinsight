@@ -12,7 +12,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
-import org.junit.jupiter.api.Tag;
+import io.qameta.allure.Tag;
 
 @Tag("integration")
 public class GameRepositoryIT extends AbstractIntegrationTest {

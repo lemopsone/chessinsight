@@ -11,7 +11,7 @@ import ru.chessinsight.domain.game.model.Game;
 import ru.chessinsight.domain.game.repository.GameRepository;
 
 import java.util.UUID;
-import org.junit.jupiter.api.Tag;
+import io.qameta.allure.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;

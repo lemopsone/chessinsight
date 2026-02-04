@@ -17,7 +17,7 @@ import ru.chessinsight.integration.AbstractWebIntegrationTest;
 
 import java.util.UUID;
 import java.util.stream.StreamSupport;
-import org.junit.jupiter.api.Tag;
+import io.qameta.allure.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 

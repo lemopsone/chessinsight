@@ -1,7 +1,7 @@
 package ru.chessinsight.domain.chess.position.model;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Tag;
+import io.qameta.allure.Tag;
 import static org.junit.jupiter.api.Assertions.*;
 
 @Tag("unit")

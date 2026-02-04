@@ -28,7 +28,7 @@ import ru.chessinsight.testdata.GameMoveBuilder;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import org.junit.jupiter.api.Tag;
+import io.qameta.allure.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;

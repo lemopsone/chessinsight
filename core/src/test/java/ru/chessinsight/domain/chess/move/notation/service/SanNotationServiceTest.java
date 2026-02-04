@@ -6,7 +6,7 @@ import ru.chessinsight.domain.chess.move.model.MoveKind;
 import ru.chessinsight.domain.chess.move.service.MoveMaker;
 import ru.chessinsight.domain.chess.position.model.Position;
 import ru.chessinsight.domain.exception.DomainException;
-import org.junit.jupiter.api.Tag;
+import io.qameta.allure.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 

@@ -4,7 +4,7 @@ import org.junit.jupiter.api.Test;
 import ru.chessinsight.domain.chess.move.model.Move;
 import ru.chessinsight.domain.chess.position.model.BoardCoordinates;
 import ru.chessinsight.domain.chess.position.model.Position;
-import org.junit.jupiter.api.Tag;
+import io.qameta.allure.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 

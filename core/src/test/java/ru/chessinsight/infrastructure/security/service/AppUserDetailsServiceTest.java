@@ -14,7 +14,7 @@ import ru.chessinsight.testdata.UserBuilder;
 
 import java.util.Optional;
 import java.util.UUID;
-import org.junit.jupiter.api.Tag;
+import io.qameta.allure.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;

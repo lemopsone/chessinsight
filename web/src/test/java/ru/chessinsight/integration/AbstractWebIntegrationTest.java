@@ -3,7 +3,7 @@ package ru.chessinsight.integration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestPropertySource;
 import ru.chessinsight.infrastructure.web.WebApplication;
-import org.junit.jupiter.api.Tag;
+import io.qameta.allure.Tag;
 
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,

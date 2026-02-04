@@ -63,6 +63,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: mkdir -p ci-reports
+      - uses: actions/cache@v4
+        with:
+          path: ci-reports/allure-history
+          key: allure-history-${{ github.ref_name }}-${{ github.run_id }}
+          restore-keys: |
+            allure-history-${{ github.ref_name }}-
+            allure-history-
       - uses: actions/download-artifact@v4
         if: always()
         continue-on-error: true

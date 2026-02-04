@@ -7,7 +7,7 @@ import ru.chessinsight.testdata.TrainingScenarioEntityBuilder;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
-import org.junit.jupiter.api.Tag;
+import io.qameta.allure.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 

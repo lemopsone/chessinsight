@@ -10,7 +10,7 @@ import org.springframework.data.redis.core.ValueOperations;
 
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import org.junit.jupiter.api.Tag;
+import io.qameta.allure.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;

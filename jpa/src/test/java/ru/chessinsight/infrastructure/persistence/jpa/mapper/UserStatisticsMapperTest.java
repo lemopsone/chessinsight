@@ -3,7 +3,7 @@ package ru.chessinsight.infrastructure.persistence.jpa.mapper;
 import org.junit.jupiter.api.Test;
 import ru.chessinsight.domain.user.model.UserStatistics;
 import ru.chessinsight.infrastructure.persistence.jpa.model.UserStatisticsEntity;
-import org.junit.jupiter.api.Tag;
+import io.qameta.allure.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 

@@ -2,7 +2,7 @@ package ru.chessinsight.domain.game.notation.service.pgn.utils;
 
 import org.junit.jupiter.api.Test;
 import java.util.List;
-import org.junit.jupiter.api.Tag;
+import io.qameta.allure.Tag;
 import static org.junit.jupiter.api.Assertions.*;
 
 @Tag("unit")
