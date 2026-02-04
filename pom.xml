@@ -52,6 +52,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.5</version>
                 <configuration>
+                    <skipTests>${skipUnitTests}</skipTests>
                     <systemPropertyVariables>
                         <allure.results.directory>${project.build.directory}/allure-results</allure.results.directory>
                         <net.bytebuddy.experimental>true</net.bytebuddy.experimental>
