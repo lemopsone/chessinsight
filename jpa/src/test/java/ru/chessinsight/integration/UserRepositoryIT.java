@@ -9,9 +9,7 @@ import ru.chessinsight.domain.user.model.UserStatistics;
 import ru.chessinsight.domain.user.repository.UserRepository;
 
 import java.util.EnumSet;
-import ru.chessinsight.testutil.Tag;
 
-@Tag("integration")
 public class UserRepositoryIT extends AbstractIntegrationTest {
 
     @Autowired

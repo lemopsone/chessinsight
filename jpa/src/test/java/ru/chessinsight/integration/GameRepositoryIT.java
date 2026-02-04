@@ -12,9 +12,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
-import ru.chessinsight.testutil.Tag;
 
-@Tag("integration")
 public class GameRepositoryIT extends AbstractIntegrationTest {
 
     @Autowired

@@ -28,13 +28,11 @@ import ru.chessinsight.testdata.UserBuilder;
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.UUID;
-import ru.chessinsight.testutil.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-@Tag("unit")
 @ExtendWith(MockitoExtension.class)
 class JwtAuthServiceTest {
     @Mock

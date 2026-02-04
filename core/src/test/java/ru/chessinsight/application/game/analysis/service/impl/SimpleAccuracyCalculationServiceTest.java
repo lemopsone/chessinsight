@@ -2,11 +2,9 @@ package ru.chessinsight.application.game.analysis.service.impl;
 
 import org.junit.jupiter.api.Test;
 import ru.chessinsight.application.game.analysis.model.MoveCategory;
-import ru.chessinsight.testutil.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@Tag("unit")
 class SimpleAccuracyCalculationServiceTest {
     private final SimpleAccuracyCalculationService service = new SimpleAccuracyCalculationService();
 

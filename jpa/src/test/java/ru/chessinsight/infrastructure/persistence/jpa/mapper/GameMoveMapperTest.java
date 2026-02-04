@@ -8,11 +8,9 @@ import ru.chessinsight.infrastructure.persistence.jpa.model.GameMoveEntity;
 import ru.chessinsight.testdata.GameMoveEntityBuilder;
 
 import java.util.UUID;
-import ru.chessinsight.testutil.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@Tag("unit")
 class GameMoveMapperTest {
     private final GameMoveMapper mapper = new GameMoveMapper();
 

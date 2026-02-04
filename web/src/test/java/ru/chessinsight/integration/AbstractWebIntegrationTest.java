@@ -3,7 +3,6 @@ package ru.chessinsight.integration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestPropertySource;
 import ru.chessinsight.infrastructure.web.WebApplication;
-import ru.chessinsight.testutil.Tag;
 
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -14,6 +13,5 @@ import ru.chessinsight.testutil.Tag;
         "jwt.secret=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
         "spring.jpa.hibernate.ddl-auto=none"
 })
-@Tag("integration")
 public abstract class AbstractWebIntegrationTest {
 }

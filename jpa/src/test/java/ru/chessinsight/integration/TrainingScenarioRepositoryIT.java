@@ -13,9 +13,7 @@ import ru.chessinsight.domain.user.repository.UserRepository;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
-import ru.chessinsight.testutil.Tag;
 
-@Tag("integration")
 public class TrainingScenarioRepositoryIT extends AbstractIntegrationTest {
 
     @Autowired

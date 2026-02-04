@@ -7,11 +7,9 @@ import ru.chessinsight.testdata.TrainingScenarioEntityBuilder;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
-import ru.chessinsight.testutil.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@Tag("unit")
 class TrainingScenarioMapperTest {
     private final TrainingScenarioMapper mapper = new TrainingScenarioMapper();
 

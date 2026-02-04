@@ -15,11 +15,9 @@ import ru.chessinsight.testdata.GameMoveEntityBuilder;
 
 import java.util.Set;
 import java.util.UUID;
-import ru.chessinsight.testutil.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@Tag("unit")
 class GameMapperTest {
     private final GameAnalysisMapper analysisMapper = new GameAnalysisMapper();
     private final GameMapper mapper = new GameMapper(analysisMapper);

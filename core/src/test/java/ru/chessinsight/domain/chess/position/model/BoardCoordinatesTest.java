@@ -1,10 +1,8 @@
 package ru.chessinsight.domain.chess.position.model;
 
 import org.junit.jupiter.api.Test;
-import ru.chessinsight.testutil.Tag;
 import static org.junit.jupiter.api.Assertions.*;
 
-@Tag("unit")
 public class BoardCoordinatesTest {
     @Test
     void fromString_and_toString_roundTrip() {

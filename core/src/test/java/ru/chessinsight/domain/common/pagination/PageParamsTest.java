@@ -1,11 +1,9 @@
 package ru.chessinsight.domain.common.pagination;
 
 import org.junit.jupiter.api.Test;
-import ru.chessinsight.testutil.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@Tag("unit")
 class PageParamsTest {
 
     @Test

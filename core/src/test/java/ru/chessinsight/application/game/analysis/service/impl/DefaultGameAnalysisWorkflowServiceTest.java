@@ -18,12 +18,10 @@ import ru.chessinsight.testdata.GameBuilder;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import ru.chessinsight.testutil.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-@Tag("unit")
 @ExtendWith(MockitoExtension.class)
 class DefaultGameAnalysisWorkflowServiceTest {
     @Mock

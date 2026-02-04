@@ -4,11 +4,9 @@ import org.junit.jupiter.api.Test;
 import ru.chessinsight.application.game.analysis.model.MoveCategory;
 import ru.chessinsight.application.game.dto.MoveAnalysisDTO;
 import ru.chessinsight.application.game.dto.MoveDTO;
-import ru.chessinsight.testutil.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@Tag("unit")
 class SimpleMoveClassificationServiceTest {
     private final SimpleMoveClassificationService service = new SimpleMoveClassificationService();
 

@@ -3,11 +3,9 @@ package ru.chessinsight.infrastructure.persistence.jpa.mapper;
 import org.junit.jupiter.api.Test;
 import ru.chessinsight.domain.user.model.UserStatistics;
 import ru.chessinsight.infrastructure.persistence.jpa.model.UserStatisticsEntity;
-import ru.chessinsight.testutil.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@Tag("unit")
 class UserStatisticsMapperTest {
     private final UserStatisticsMapper mapper = new UserStatisticsMapper();
 

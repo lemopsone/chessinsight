@@ -17,11 +17,9 @@ import ru.chessinsight.integration.AbstractWebIntegrationTest;
 
 import java.util.UUID;
 import java.util.stream.StreamSupport;
-import ru.chessinsight.testutil.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@Tag("e2e")
 public class DemoScenarioE2EIT extends AbstractWebIntegrationTest {
 
     @LocalServerPort

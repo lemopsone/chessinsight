@@ -1,11 +1,9 @@
 package ru.chessinsight.infrastructure.security.service.impl;
 
 import org.junit.jupiter.api.Test;
-import ru.chessinsight.testutil.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@Tag("unit")
 class BCryptPasswordHasherTest {
     private final BCryptPasswordHasher hasher = new BCryptPasswordHasher();
 

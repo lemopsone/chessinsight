@@ -8,11 +8,9 @@ import ru.chessinsight.testdata.UserBuilder;
 import ru.chessinsight.testdata.UserMother;
 
 import java.util.UUID;
-import ru.chessinsight.testutil.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@Tag("unit")
 class DefaultUserProfileServiceClassicTest {
 
     @Test

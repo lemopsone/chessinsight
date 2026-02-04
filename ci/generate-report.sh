@@ -10,6 +10,29 @@ HISTORY_DIR=${4:-$RESULTS_DIR/allure-history}
 rm -rf "$OUT_RESULTS" "$OUT_REPORT"
 mkdir -p "$OUT_RESULTS"
 
+if ! command -v jq >/dev/null 2>&1; then
+  echo "jq is required"
+  exit 1
+fi
+
+label_stage() {
+  local stage=$1
+  local dir=$2
+  local file tmp
+  for file in "$dir"/*-result.json; do
+    [ -f "$file" ] || continue
+    tmp="${file}.tmp"
+    jq --arg stage "$stage" '
+      .labels = (
+        (.labels // [])
+        | if any(.name=="tag" and .value==$stage) then .
+          else . + [{"name":"tag","value":$stage}]
+          end
+      )
+    ' "$file" > "$tmp" && mv "$tmp" "$file"
+  done
+}
+
 if [ -d "$HISTORY_DIR" ]; then
   mkdir -p "$OUT_RESULTS/history"
   cp -a "$HISTORY_DIR/." "$OUT_RESULTS/history"
@@ -18,12 +41,13 @@ fi
 for stage in unit integration e2e; do
   STAGE_DIR="$RESULTS_DIR/allure-results-$stage"
   if [ -d "$STAGE_DIR" ]; then
+    label_stage "$stage" "$STAGE_DIR"
     cp -a "$STAGE_DIR/." "$OUT_RESULTS"
   else
     TS=$(date +%s%3N)
     UUID_VAL=$(cat /proc/sys/kernel/random/uuid)
     cat > "$OUT_RESULTS/${stage}-skipped-${UUID_VAL}-result.json" <<EOF
-{"uuid":"$UUID_VAL","name":"$stage stage skipped","status":"skipped","stage":"finished","start":$TS,"stop":$TS}
+{"uuid":"$UUID_VAL","name":"$stage stage skipped","status":"skipped","stage":"finished","start":$TS,"stop":$TS,"labels":[{"name":"tag","value":"$stage"}]}
 EOF
   fi
 done

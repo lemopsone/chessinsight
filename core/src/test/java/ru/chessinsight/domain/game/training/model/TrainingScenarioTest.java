@@ -3,10 +3,8 @@ package ru.chessinsight.domain.game.training.model;
 import org.junit.jupiter.api.Test;
 import java.time.OffsetDateTime;
 import java.util.UUID;
-import ru.chessinsight.testutil.Tag;
 import static org.junit.jupiter.api.Assertions.*;
 
-@Tag("unit")
 public class TrainingScenarioTest {
 
     @Test

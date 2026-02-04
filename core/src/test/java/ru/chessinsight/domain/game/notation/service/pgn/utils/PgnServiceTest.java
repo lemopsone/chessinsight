@@ -12,10 +12,8 @@ import ru.chessinsight.testdata.GameMoveBuilder;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import ru.chessinsight.testutil.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
-@Tag("unit")
 public class PgnServiceTest {
     final PgnService pgnService = new PgnService();
     final SanNotationService sanNotationService = new SanNotationService();

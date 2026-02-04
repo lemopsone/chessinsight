@@ -10,14 +10,12 @@ import org.springframework.data.redis.core.ValueOperations;
 
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import ru.chessinsight.testutil.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-@Tag("unit")
 @ExtendWith(MockitoExtension.class)
 class RedisRefreshTokenServiceTest {
     @Mock

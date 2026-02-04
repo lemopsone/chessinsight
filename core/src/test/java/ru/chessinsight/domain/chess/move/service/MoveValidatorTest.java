@@ -7,11 +7,9 @@ import ru.chessinsight.domain.chess.position.model.BoardCoordinates;
 import ru.chessinsight.domain.chess.position.model.Position;
 
 import java.util.List;
-import ru.chessinsight.testutil.Tag;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@Tag("unit")
 public class MoveValidatorTest {
     private final MoveValidator validator = new MoveValidator();
     private final ru.chessinsight.domain.chess.move.notation.service.UciNotationService uci =
