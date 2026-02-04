@@ -2,10 +2,17 @@
 
 set -euo pipefail
 
-CORE_DIR=core/target/site/allure-maven-plugin
-JPA_DIR=jpa/target/site/allure-maven-plugin
+OUT_RESULTS=target/allure-results-merged
+OUT_REPORT=target/allure-report-merged
 
-mvn -pl core,jpa -am allure:report
+rm -rf "$OUT_RESULTS" "$OUT_REPORT"
+mkdir -p "$OUT_RESULTS"
 
-allure open $CORE_DIR &
-allure open $JPA_DIR
+for dir in core/target/allure-results jpa/target/allure-results web/target/allure-results; do
+  if [ -d "$dir" ]; then
+    cp -a "$dir/." "$OUT_RESULTS"
+  fi
+done
+
+allure generate "$OUT_RESULTS" -o "$OUT_REPORT" --clean
+allure open "$OUT_REPORT"
