@@ -48,15 +48,15 @@ fi
 set +e
 case "$STAGE" in
   unit)
-    mvn "${MAVEN_ARGS[@]}" -pl core,jpa,web -am test
+    mvn "${MAVEN_ARGS[@]}" -pl core,jpa,web -am test -Dallure.test.stage=unit
     STATUS=$?
     ;;
   integration)
-    mvn "${MAVEN_ARGS[@]}" -pl jpa -am verify -DskipUnitTests=true -DskipITs=false -DskipE2E=true "${EXTRA_ARGS[@]}"
+    mvn "${MAVEN_ARGS[@]}" -pl jpa -am verify -DskipUnitTests=true -DskipITs=false -DskipE2E=true -Dallure.test.stage=integration "${EXTRA_ARGS[@]}"
     STATUS=$?
     ;;
   e2e)
-    mvn "${MAVEN_ARGS[@]}" -pl web -am verify -DskipUnitTests=true -DskipITs=true -DskipE2E=false "${EXTRA_ARGS[@]}"
+    mvn "${MAVEN_ARGS[@]}" -pl web -am verify -DskipUnitTests=true -DskipITs=true -DskipE2E=false -Dallure.test.stage=e2e "${EXTRA_ARGS[@]}"
     STATUS=$?
     ;;
   *)
