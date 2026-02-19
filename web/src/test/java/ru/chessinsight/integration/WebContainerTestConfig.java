@@ -2,6 +2,7 @@ package ru.chessinsight.integration;
 
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -23,6 +24,7 @@ public class WebContainerTestConfig {
 
     @Bean
     @ServiceConnection
+    @ConditionalOnProperty(name = "test.db.mode", havingValue = "testcontainers", matchIfMissing = true)
     PostgreSQLContainer<?> postgresContainer() {
         return new PostgreSQLContainer<>("postgres:16-alpine")
                 .withInitScript("schema.sql");
