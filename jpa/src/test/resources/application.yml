@@ -14,3 +14,6 @@ spring:
     hikari:
       maximum-pool-size: 3
       minimum-idle: 0
+
+jwt:
+  secret: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
