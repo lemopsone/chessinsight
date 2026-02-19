@@ -21,7 +21,10 @@ public class WebTestDatabaseInitializer implements ApplicationContextInitializer
         String username = value("test.db.username", "TEST_DB_USERNAME", "postgres");
         String password = value("test.db.password", "TEST_DB_PASSWORD", "postgres");
         String prefix = value("test.db.schema.prefix", "TEST_DB_SCHEMA_PREFIX", "e2e");
-        String schema = sanitizeSchema(prefix + "_" + UUID.randomUUID().toString().replace("-", ""));
+        String schemaName = value("test.db.schema.name", "TEST_DB_SCHEMA_NAME", "");
+        String schema = schemaName.isBlank()
+                ? sanitizeSchema(prefix + "_" + UUID.randomUUID().toString().replace("-", ""))
+                : sanitizeSchema(schemaName);
         String url = withCurrentSchema(baseUrl, schema);
 
         TestPropertyValues.of(

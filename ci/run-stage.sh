@@ -9,6 +9,7 @@ TEST_DB_URL=${TEST_DB_URL:-}
 TEST_DB_USERNAME=${TEST_DB_USERNAME:-postgres}
 TEST_DB_PASSWORD=${TEST_DB_PASSWORD:-postgres}
 TEST_DB_SCHEMA_PREFIX=${TEST_DB_SCHEMA_PREFIX:-itest}
+TEST_DB_SCHEMA_NAME=${TEST_DB_SCHEMA_NAME:-}
 MAVEN_REPO_LOCAL=${MAVEN_REPO_LOCAL:-}
 JACOCO_SKIP=${JACOCO_SKIP:-}
 
@@ -16,6 +17,8 @@ mkdir -p "$RESULTS_DIR"
 
 EXTRA_ARGS=()
 MAVEN_ARGS=()
+
+MAVEN_ARGS+=("--batch-mode" "--no-transfer-progress")
 
 if [ -n "$MAVEN_REPO_LOCAL" ]; then
   MAVEN_ARGS+=("-Dmaven.repo.local=${MAVEN_REPO_LOCAL}")
@@ -37,6 +40,9 @@ if [ "$TEST_DB_MODE" = "local-shared" ]; then
     "-Dtest.db.password=${TEST_DB_PASSWORD}"
     "-Dtest.db.schema.prefix=${TEST_DB_SCHEMA_PREFIX}"
   )
+  if [ -n "$TEST_DB_SCHEMA_NAME" ]; then
+    EXTRA_ARGS+=("-Dtest.db.schema.name=${TEST_DB_SCHEMA_NAME}")
+  fi
 fi
 
 set +e

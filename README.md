@@ -120,17 +120,20 @@ mvn -pl core,jpa -am allure:report
 Пример запуска integration:
 
 ```bash
-./ci/run-local-integration.sh integration
+./ci/test-on-local-instance.sh integration
 ```
 
 Пример запуска e2e:
 
 ```bash
-./ci/run-local-integration.sh e2e
+./ci/test-on-local-instance.sh e2e
 ```
 
 По умолчанию используется адрес контейнера в сети Docker:
 `jdbc:postgresql://pg-itest:5432/chessinsight_test`.
+
+После каждого запуска (успешного или аварийного) скрипт принудительно удаляет тестовую схему из PostgreSQL.
+Это обеспечивает откат тестового хранилища к исходному состоянию.
 
 Для ускорения повторных запусков Maven-зависимости кэшируются в Docker volume
 `chessinsight-m2-cache` и переиспользуются между прогонами.
