@@ -101,3 +101,42 @@ mvn -pl core,jpa -am allure:report
 `core/target/site/allure-maven-plugin`
 
 `jpa/target/site/allure-maven-plugin`
+
+# 12. Локальный запуск integration/e2e на одном инстансе PostgreSQL
+
+Для CI/CD сохранен режим Testcontainers по умолчанию.
+Для локального запуска добавлен контейнерный режим `local-shared`:
+тесты выполняются внутри `test-runner` контейнера, а PostgreSQL поднимается отдельным контейнером.
+Каждый прогон использует отдельную временную схему в одном и том же инстансе БД, поэтому несколько прогонов можно выполнять параллельно.
+
+Поднять PostgreSQL для локальных прогонов:
+
+```bash
+./ci/start-local-postgres.sh
+```
+
+Скрипт создаст сеть `chessinsight-itest-net`, контейнер `chessinsight-it-postgres` и выведет JDBC-адреса.
+
+Пример запуска integration:
+
+```bash
+./ci/run-local-integration.sh integration
+```
+
+Пример запуска e2e:
+
+```bash
+./ci/run-local-integration.sh e2e
+```
+
+По умолчанию используется адрес контейнера в сети Docker:
+`jdbc:postgresql://pg-itest:5432/chessinsight_test`.
+
+Для ускорения повторных запусков Maven-зависимости кэшируются в Docker volume
+`chessinsight-m2-cache` и переиспользуются между прогонами.
+
+Чтобы очистить кэш зависимостей:
+
+```bash
+docker volume rm chessinsight-m2-cache
+```
