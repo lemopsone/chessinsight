@@ -12,7 +12,15 @@ TEST_DB_SCHEMA_PREFIX=${TEST_DB_SCHEMA_PREFIX:-itest}
 TEST_DB_SCHEMA_NAME=${TEST_DB_SCHEMA_NAME:-}
 MAVEN_REPO_LOCAL=${MAVEN_REPO_LOCAL:-}
 JACOCO_SKIP=${JACOCO_SKIP:-}
-TEST_RANDOM_SEED=${TEST_RANDOM_SEED:-$(cat /proc/sys/kernel/random/uuid | tr -d '-')}
+TEST_RANDOM_SEED=${TEST_RANDOM_SEED:-$(date +%s%N)}
+
+if ! [[ "$TEST_RANDOM_SEED" =~ ^[0-9]+$ ]]; then
+  TEST_RANDOM_SEED=$(printf '%s' "$TEST_RANDOM_SEED" | cksum | awk '{print $1}')
+fi
+
+if [ "${#TEST_RANDOM_SEED}" -gt 18 ]; then
+  TEST_RANDOM_SEED="${TEST_RANDOM_SEED:0:18}"
+fi
 
 mkdir -p "$RESULTS_DIR"
 
