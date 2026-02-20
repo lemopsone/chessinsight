@@ -24,8 +24,8 @@ stage_title() {
   esac
 }
 
-write_executor() {
-  local repo owner name default_report_url report_url build_url build_order build_name
+default_report_url() {
+  local repo owner name
 
   repo=${GITHUB_REPOSITORY:-}
   owner=${GITHUB_REPOSITORY_OWNER:-}
@@ -34,16 +34,59 @@ write_executor() {
     owner=${repo%%/*}
   fi
 
-  default_report_url=""
   if [ -n "$owner" ] && [ -n "$name" ]; then
     if [ "$name" = "${owner}.github.io" ]; then
-      default_report_url="https://${owner}.github.io/"
+      echo "https://${owner}.github.io/"
     else
-      default_report_url="https://${owner}.github.io/${name}/"
+      echo "https://${owner}.github.io/${name}/"
     fi
   fi
+}
 
-  report_url=${REPORT_URL:-$default_report_url}
+resolve_report_url() {
+  local report_url
+  report_url=${REPORT_URL:-}
+  if [ -z "$report_url" ]; then
+    report_url=$(default_report_url)
+  fi
+  echo "$report_url"
+}
+
+history_dir_has_files() {
+  [ -d "$1" ] && [ -n "$(find "$1" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]
+}
+
+restore_history_from_pages() {
+  local report_url history_url restored
+
+  report_url=$(resolve_report_url)
+  if [ -z "$report_url" ]; then
+    return
+  fi
+
+  history_url="${report_url%/}/history"
+  restored=0
+  mkdir -p "$HISTORY_DIR"
+
+  for file in history.json history-trend.json duration-trend.json retry-trend.json categories-trend.json; do
+    if curl -fsSL "$history_url/$file" -o "$HISTORY_DIR/$file"; then
+      restored=1
+    else
+      rm -f "$HISTORY_DIR/$file"
+    fi
+  done
+
+  if [ "$restored" -eq 1 ]; then
+    echo "Restored Allure history from ${history_url}"
+  fi
+}
+
+write_executor() {
+  local repo report_url build_url build_order build_name
+
+  repo=${GITHUB_REPOSITORY:-}
+
+  report_url=$(resolve_report_url)
   build_url=${BUILD_URL:-}
   if [ -z "$build_url" ] && [ -n "${GITHUB_SERVER_URL:-}" ] && [ -n "$repo" ] && [ -n "${GITHUB_RUN_ID:-}" ]; then
     build_url="${GITHUB_SERVER_URL}/${repo}/actions/runs/${GITHUB_RUN_ID}"
@@ -80,7 +123,11 @@ write_executor() {
     }' > "$OUT_RESULTS/executor.json"
 }
 
-if [ -d "$HISTORY_DIR" ]; then
+if ! history_dir_has_files "$HISTORY_DIR"; then
+  restore_history_from_pages
+fi
+
+if history_dir_has_files "$HISTORY_DIR"; then
   mkdir -p "$OUT_RESULTS/history"
   cp -a "$HISTORY_DIR/." "$OUT_RESULTS/history"
 fi
