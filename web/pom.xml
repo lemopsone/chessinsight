@@ -141,6 +141,7 @@
                     </systemPropertyVariables>
                     <includes>
                         <include>**/*E2EIT.java</include>
+                        <include>**/*E2E.java</include>
                     </includes>
                 </configuration>
                 <executions>

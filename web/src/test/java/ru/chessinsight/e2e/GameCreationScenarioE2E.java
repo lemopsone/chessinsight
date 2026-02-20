@@ -20,7 +20,7 @@ import java.util.stream.StreamSupport;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class DemoScenarioE2EIT extends AbstractWebIntegrationTest {
+public class GameCreationScenarioE2E extends AbstractWebIntegrationTest {
 
     @LocalServerPort
     private int port;

@@ -24,7 +24,7 @@ public class AllureStageExtension implements BeforeEachCallback {
         if ("unit".equals(explicit) || "integration".equals(explicit) || "e2e".equals(explicit)) {
             return explicit;
         }
-        if (className.endsWith("E2EIT")) {
+        if (className.endsWith("E2E") || className.endsWith("E2EIT")) {
             return "e2e";
         }
         if (className.endsWith("IT") || className.endsWith("ITCase")) {
