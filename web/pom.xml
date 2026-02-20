@@ -59,6 +59,12 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>ru.chessinsight</groupId>
+            <artifactId>test-fixtures</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>io.qameta.allure</groupId>
             <artifactId>allure-junit5</artifactId>
             <version>${allure.version}</version>
@@ -123,6 +129,8 @@
                 <version>3.2.5</version>
                 <configuration>
                     <skipITs>${skipE2E}</skipITs>
+                    <runOrder>random</runOrder>
+                    <runOrderRandomSeed>${tests.random.seed}</runOrderRandomSeed>
                     <systemPropertyVariables>
                         <allure.results.directory>${project.build.directory}/allure-results</allure.results.directory>
                         <net.bytebuddy.experimental>true</net.bytebuddy.experimental>

@@ -12,6 +12,7 @@ TEST_DB_SCHEMA_PREFIX=${TEST_DB_SCHEMA_PREFIX:-itest}
 TEST_DB_SCHEMA_NAME=${TEST_DB_SCHEMA_NAME:-}
 MAVEN_REPO_LOCAL=${MAVEN_REPO_LOCAL:-}
 JACOCO_SKIP=${JACOCO_SKIP:-}
+TEST_RANDOM_SEED=${TEST_RANDOM_SEED:-$(cat /proc/sys/kernel/random/uuid | tr -d '-')}
 
 mkdir -p "$RESULTS_DIR"
 
@@ -19,6 +20,8 @@ EXTRA_ARGS=()
 MAVEN_ARGS=()
 
 MAVEN_ARGS+=("--batch-mode" "--no-transfer-progress")
+MAVEN_ARGS+=("-Dtests.random.seed=${TEST_RANDOM_SEED}")
+MAVEN_ARGS+=("-Djunit.jupiter.execution.order.random.seed=${TEST_RANDOM_SEED}")
 
 if [ -n "$MAVEN_REPO_LOCAL" ]; then
   MAVEN_ARGS+=("-Dmaven.repo.local=${MAVEN_REPO_LOCAL}")
@@ -27,6 +30,8 @@ fi
 if [ -n "$JACOCO_SKIP" ]; then
   MAVEN_ARGS+=("-Djacoco.skip=${JACOCO_SKIP}")
 fi
+
+echo "TEST_RANDOM_SEED=${TEST_RANDOM_SEED}"
 
 if [ "$TEST_DB_MODE" = "local-shared" ]; then
   if [ -z "$TEST_DB_URL" ]; then

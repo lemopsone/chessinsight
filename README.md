@@ -102,6 +102,36 @@ mvn -pl core,jpa -am allure:report
 
 `jpa/target/site/allure-maven-plugin`
 
+Случайный порядок выполнения тестов включен:
+
+- `maven-surefire-plugin` и `maven-failsafe-plugin` настроены с `runOrder=random`;
+- JUnit 5 настроен на random-order классов и методов через `junit-platform.properties`.
+
+Для воспроизводимости конкретного случайного прогона используется `seed`:
+
+```bash
+TEST_RANDOM_SEED=123456 ./ci/run-stage.sh unit
+```
+
+Тот же `seed` передается в Maven (`tests.random.seed`, `junit.jupiter.execution.order.random.seed`).
+
+Наблюдаемые дефолты (по `mvn -X`):
+
+- `forkCount` = `1`;
+- `reuseForks` = `true`.
+
+Это означает:
+
+- один forked JVM-процесс на модуль и фазу (`test` / `integration-test`);
+- не отдельный процесс на каждый тест-класс и не отдельный процесс на каждый тест-метод.
+
+```bash
+mvn -pl core -Dtest=ru.chessinsight.domain.common.pagination.PageTest -X test | rg -n "forkCount|reuseForks|Forking"
+```
+```bash
+mvn -pl jpa -DskipITs=true -DskipUnitTests=true -X verify | rg -n "maven-failsafe-plugin|forkCount|reuseForks"
+```
+
 # 12. Локальный запуск integration/e2e на одном инстансе PostgreSQL
 
 Для CI/CD сохранен режим Testcontainers по умолчанию.
@@ -133,13 +163,3 @@ mvn -pl core,jpa -am allure:report
 `jdbc:postgresql://pg-itest:5432/chessinsight_test`.
 
 После каждого запуска (успешного или аварийного) скрипт принудительно удаляет тестовую схему из PostgreSQL.
-Это обеспечивает откат тестового хранилища к исходному состоянию.
-
-Для ускорения повторных запусков Maven-зависимости кэшируются в Docker volume
-`chessinsight-m2-cache` и переиспользуются между прогонами.
-
-Чтобы очистить кэш зависимостей:
-
-```bash
-docker volume rm chessinsight-m2-cache
-```
