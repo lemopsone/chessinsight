@@ -163,3 +163,34 @@ mvn -pl jpa -DskipITs=true -DskipUnitTests=true -X verify | rg -n "maven-failsaf
 `jdbc:postgresql://pg-itest:5432/chessinsight_test`.
 
 После каждого запуска (успешного или аварийного) скрипт принудительно удаляет тестовую схему из PostgreSQL.
+
+# 13. Интеграция со внешним Stockfish (mock/real)
+
+Контракт интеграции (UCI по TCP), mock-сервер и E2E-сценарий описаны в:
+
+`docs/stockfish-integration.md`
+
+Переключение внешнего сервиса выполняется конфигурацией:
+
+- runtime backend: `ENGINE_STOCKFISH_HOST`, `ENGINE_STOCKFISH_PORT`
+- E2E pipeline: `TEST_STOCKFISH_PROVIDER=mock|real`
+
+Примеры E2E запуска:
+
+```bash
+TEST_STOCKFISH_PROVIDER=mock ./ci/run-stage.sh e2e
+```
+
+```bash
+TEST_STOCKFISH_PROVIDER=real ./ci/run-stage.sh e2e
+```
+
+Локальный запуск docker-compose окружения для демонстрации:
+
+```bash
+./ci/run-demo-env.sh mock
+```
+
+```bash
+./ci/run-demo-env.sh real
+```
