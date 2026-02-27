@@ -71,7 +71,8 @@ public class TcpStockfish implements ChessEngine, AutoCloseable {
             @Value("${engine.stockfish.hash:128}") int hashMb,
             @Value("${engine.stockfish.ponder:false}") boolean ponder,
             @Value("${engine.stockfish.readTimeoutMs:" + DEFAULT_READ_TIMEOUT_MS + "}") int readTimeoutMs,
-            @Value("${engine.stockfish.poolSize:" + DEFAULT_POOL_SIZE + "}") int poolSize
+            @Value("${engine.stockfish.poolSize:" + DEFAULT_POOL_SIZE + "}") int poolSize,
+            @Value("${engine.stockfish.eagerWarmup:false}") boolean eagerWarmup
     ) {
         this.host = host;
         this.port = port;
@@ -84,6 +85,9 @@ public class TcpStockfish implements ChessEngine, AutoCloseable {
         this.availableSessions = new ArrayBlockingQueue<>(this.poolSize, true);
         this.allSessions = ConcurrentHashMap.newKeySet();
         this.createdSessions = new AtomicInteger(0);
+        if (eagerWarmup) {
+            warmUpPool();
+        }
     }
 
     @Override
@@ -415,6 +419,30 @@ public class TcpStockfish implements ChessEngine, AutoCloseable {
             }
         }
         throw lastError != null ? lastError : new EngineException("Failed to connect to Stockfish");
+    }
+
+    private void warmUpPool() {
+        List<EngineSession> warmed = new ArrayList<>(poolSize);
+        try {
+            for (int i = 0; i < poolSize; i++) {
+                warmed.add(createConnectedSession());
+            }
+            for (EngineSession session : warmed) {
+                allSessions.add(session);
+                createdSessions.incrementAndGet();
+                if (!availableSessions.offer(session)) {
+                    throw new EngineException("Failed to add warmed Stockfish session to pool");
+                }
+            }
+        } catch (EngineException e) {
+            for (EngineSession session : warmed) {
+                closeSession(session);
+            }
+            allSessions.clear();
+            availableSessions.clear();
+            createdSessions.set(0);
+            throw new EngineException("Failed to warm up Stockfish pool: " + e.getMessage());
+        }
     }
 
     private void initialize(EngineSession session) throws EngineException {

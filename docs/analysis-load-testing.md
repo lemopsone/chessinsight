@@ -121,17 +121,24 @@ python3 ci/perf/manual_run_k6.py --mode fixed --rps <max_acceptable_rps>
 
 Проверьте два лимитера:
 
-- пул сессий к Stockfish (`engine.stockfish.poolSize`, сейчас дефолт `64`);
+- пул сессий к Stockfish (`engine.stockfish.poolSize`, сейчас дефолт `32`);
+- eager warm-up пула Stockfish (`engine.stockfish.eagerWarmup`, сейчас дефолт `true`);
 - кэш загрузки пользователя в JWT-фильтре (`security.auth.user-cache-ttl-seconds`, сейчас `60`).
+- HTTP admission-control для `POST /v1/move-evaluations`:
+  - `analysis.move.http.max-concurrent-requests` (дефолт `48`)
+  - `analysis.move.http.acquire-timeout-ms` (дефолт `500`)
 
 Обе настройки можно менять через env перед стартом compose:
 
 ```bash
 export ENGINE_STOCKFISH_POOL_SIZE=24
+export ENGINE_STOCKFISH_EAGER_WARMUP=true
 export SECURITY_AUTH_USER_CACHE_TTL_SECONDS=300
 export SERVER_TOMCAT_THREADS_MAX=64
 export SERVER_TOMCAT_MAX_CONNECTIONS=200
 export SERVER_TOMCAT_ACCEPT_COUNT=40
+export ANALYSIS_MOVE_HTTP_MAX_CONCURRENT_REQUESTS=48
+export ANALYSIS_MOVE_HTTP_ACQUIRE_TIMEOUT_MS=500
 docker compose --profile mock up -d
 ```
 

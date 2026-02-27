@@ -32,9 +32,12 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
                                     @NotNull HttpServletResponse response,
                                     @NotNull FilterChain filterChain) throws ServletException, IOException {
         String token = parseToken(request);
-        if (token != null && jwtTokenProvider.validateToken(token)) {
-            UUID userId = jwtTokenProvider.getUserIdFromToken(token);
-
+        if (token != null) {
+            UUID userId = jwtTokenProvider.extractUserIdIfValid(token).orElse(null);
+            if (userId == null) {
+                filterChain.doFilter(request, response);
+                return;
+            }
             var userDetails = userDetailsService.loadUserById(userId);
             var auth = new UsernamePasswordAuthenticationToken(
                     userDetails, null, userDetails.getAuthorities()

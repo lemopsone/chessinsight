@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -45,10 +46,7 @@ final public class JWTTokenProvider {
 
     public boolean validateToken(String token) {
         try {
-            Jwts.parserBuilder()
-                    .setSigningKey(jwtSecretKey)
-                    .build()
-                    .parseClaimsJws(token);
+            parseClaims(token);
             return true;
         } catch (JwtException e) {
             return false;
@@ -56,12 +54,24 @@ final public class JWTTokenProvider {
     }
 
     public UUID getUserIdFromToken(String token) {
-        Claims claims = Jwts.parserBuilder()
+        Claims claims = parseClaims(token);
+        return UUID.fromString(claims.getSubject());
+    }
+
+    public Optional<UUID> extractUserIdIfValid(String token) {
+        try {
+            Claims claims = parseClaims(token);
+            return Optional.of(UUID.fromString(claims.getSubject()));
+        } catch (JwtException | IllegalArgumentException e) {
+            return Optional.empty();
+        }
+    }
+
+    private Claims parseClaims(String token) {
+        return Jwts.parserBuilder()
                 .setSigningKey(jwtSecretKey)
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
-
-        return UUID.fromString(claims.getSubject());
     }
 }

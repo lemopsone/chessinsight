@@ -27,21 +27,20 @@ engine:
     port: 5555
     path: /usr/local/bin/stockfish
     defaultDepth: 15
-    poolSize: 64
+    poolSize: 32
+    eagerWarmup: true
     readTimeoutMs: 5000
+
+analysis:
+  move:
+    http:
+      max-concurrent-requests: 48
+      acquire-timeout-ms: 500
 
 server:
   port: 8080
   servlet:
     context-path: /api
-  tomcat:
-    threads:
-      max: ${SERVER_TOMCAT_THREADS_MAX:64}
-      min-spare: ${SERVER_TOMCAT_THREADS_MIN_SPARE:16}
-    max-connections: ${SERVER_TOMCAT_MAX_CONNECTIONS:200}
-    accept-count: ${SERVER_TOMCAT_ACCEPT_COUNT:40}
-    connection-timeout: ${SERVER_TOMCAT_CONNECTION_TIMEOUT:5s}
-
 jwt:
   secret: ${JWT_SECRET_KEY:asdkoasfiuwerjfniwef_32124Q_e}
   expiration: 3600
@@ -53,7 +52,7 @@ security:
 logging:
   level:
     root: info
-    ru.chessinsight: debug
+    ru.chessinsight: info
 
 springdoc:
   api-docs:

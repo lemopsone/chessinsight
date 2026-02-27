@@ -103,11 +103,11 @@
       "targets": [
         {
           "expr": "sum(rate(http_server_requests_seconds_count{job=\"backend\",uri=\"/v1/move-evaluations\",method=\"POST\"}[1m]))",
-          "legendFormat": "move-analysis RPS",
+          "legendFormat": "RPS",
           "refId": "A"
         }
       ],
-      "title": "Move Analysis RPS",
+      "title": "RPS /move-evaluations",
       "type": "timeseries"
     },
     {
@@ -196,7 +196,7 @@
           "refId": "A"
         }
       ],
-      "title": "Backend CPU (cAdvisor)",
+      "title": "Backend CPU",
       "type": "timeseries"
     },
     {
@@ -290,7 +290,7 @@
           "refId": "B"
         }
       ],
-      "title": "Move Analysis Latency p95/p99",
+      "title": "p95/p99 latency /move-evaluations",
       "type": "timeseries"
     },
     {
@@ -379,7 +379,7 @@
           "refId": "A"
         }
       ],
-      "title": "Backend Memory (cAdvisor)",
+      "title": "Backend Memory",
       "type": "timeseries"
     },
     {
@@ -464,16 +464,16 @@
       "targets": [
         {
           "expr": "100 * ((sum(rate(http_server_requests_seconds_count{job=\"backend\",uri=\"/v1/move-evaluations\",method=\"POST\",status!~\"2..\"}[1m])) or vector(0)) / clamp_min((sum(rate(http_server_requests_seconds_count{job=\"backend\",uri=\"/v1/move-evaluations\",method=\"POST\"}[1m])) or vector(0)), 0.000001))",
-          "legendFormat": "http non-2xx rate",
+          "legendFormat": "http non-2xx",
           "refId": "A"
         },
         {
           "expr": "100 * (clamp_min(((sum(rate(http_server_requests_seconds_count{job=\"backend\",uri=\"/v1/move-evaluations\",method=\"POST\"}[1m])) or vector(0)) - (sum(rate(http_server_requests_seconds_bucket{job=\"backend\",uri=\"/v1/move-evaluations\",method=\"POST\",le=\"0.5\"}[1m])) or vector(0))), 0) / clamp_min((sum(rate(http_server_requests_seconds_count{job=\"backend\",uri=\"/v1/move-evaluations\",method=\"POST\"}[1m])) or vector(0)), 0.000001))",
-          "legendFormat": "SLA breach rate (>500ms)",
+          "legendFormat": "нарушение SLA (>500ms)",
           "refId": "B"
         }
       ],
-      "title": "Move Analysis Error/SLA Breach Rate",
+      "title": "ошибки /move-evaluations",
       "type": "timeseries"
     },
     {
@@ -567,7 +567,7 @@
           "refId": "B"
         }
       ],
-      "title": "Backend Disk I/O (cAdvisor)",
+      "title": "Backend Disk I/O",
       "type": "timeseries"
     }
   ],
