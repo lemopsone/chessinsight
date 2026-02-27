@@ -121,7 +121,7 @@ python3 ci/perf/manual_run_k6.py --mode fixed --rps <max_acceptable_rps>
 
 Проверьте два лимитера:
 
-- пул сессий к Stockfish (`engine.stockfish.poolSize`, сейчас дефолт `16`);
+- пул сессий к Stockfish (`engine.stockfish.poolSize`, сейчас дефолт `64`);
 - кэш загрузки пользователя в JWT-фильтре (`security.auth.user-cache-ttl-seconds`, сейчас `60`).
 
 Обе настройки можно менять через env перед стартом compose:
@@ -129,6 +129,9 @@ python3 ci/perf/manual_run_k6.py --mode fixed --rps <max_acceptable_rps>
 ```bash
 export ENGINE_STOCKFISH_POOL_SIZE=24
 export SECURITY_AUTH_USER_CACHE_TTL_SECONDS=300
+export SERVER_TOMCAT_THREADS_MAX=64
+export SERVER_TOMCAT_MAX_CONNECTIONS=200
+export SERVER_TOMCAT_ACCEPT_COUNT=40
 docker compose --profile mock up -d
 ```
 
