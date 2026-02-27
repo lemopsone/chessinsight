@@ -44,3 +44,4 @@ build/
 
 **/.allure/**
 **/.idea/**
+reports/perf/

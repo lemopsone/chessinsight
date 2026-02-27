@@ -43,7 +43,11 @@ public class SecurityConfig {
                                 "/v1/swagger-ui.html",
                                 "/v1/swagger-ui/**",
                                 "/v1/openapi.yaml",
-                                "/v1/api-docs/**"
+                                "/v1/api-docs/**",
+                                "/api/actuator/**",
+                                "/actuator/health",
+                                "/actuator/info",
+                                "/actuator/prometheus"
                             ).permitAll()
                         .requestMatchers(
                                 HttpMethod.POST, "/v1/users"

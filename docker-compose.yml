@@ -30,6 +30,7 @@ services:
       - chessnet
 
   backend_ro1:
+    profiles: ["replica"]
     container_name: backend-ro-1
     build:
       context: .
@@ -55,6 +56,7 @@ services:
       - chessnet
 
   backend_ro2:
+    profiles: ["replica"]
     container_name: backend-ro-2
     build:
       context: .
@@ -80,6 +82,7 @@ services:
       - chessnet
 
   backend_mirror:
+    profiles: ["replica"]
     container_name: backend-mirror
     build:
       context: .
@@ -105,6 +108,7 @@ services:
       - chessnet
 
   backend_mirror_ro1:
+    profiles: ["replica"]
     container_name: backend-mirror-ro-1
     build:
       context: .
@@ -130,6 +134,7 @@ services:
       - chessnet
 
   backend_mirror_ro2:
+    profiles: ["replica"]
     container_name: backend-mirror-ro-2
     build:
       context: .
@@ -169,11 +174,6 @@ services:
       - ./monitoring/consul/consul-template.hcl:/etc/consul-template/consul-template.hcl:ro
     depends_on:
       - backend
-      - backend_ro1
-      - backend_ro2
-      - backend_mirror
-      - backend_mirror_ro1
-      - backend_mirror_ro2
       - adminer
       - grafana
       - consul
@@ -382,8 +382,58 @@ services:
     volumes:
       - grafana-data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/etc/grafana/dashboards:ro
     depends_on:
       - loki
+      - prometheus
+    networks:
+      - chessnet
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    volumes:
+      - prometheus-data:/prometheus
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - backend
+      - cadvisor
+      - node-exporter
+    networks:
+      - chessnet
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.55.1
+    container_name: cadvisor
+    privileged: true
+    command:
+      - --docker_only=true
+      - --housekeeping_interval=5s
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg
+    networks:
+      - chessnet
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: node-exporter
+    command:
+      - --path.rootfs=/host
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($|/)
+    volumes:
+      - /:/host:ro,rslave
     networks:
       - chessnet
 
@@ -391,6 +441,7 @@ volumes:
   postgres-master-data:
   postgres-replica-data:
   grafana-data:
+  prometheus-data:
   loki-data:
   es-data:
   consul-data:

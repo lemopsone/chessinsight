@@ -1,0 +1,138 @@
+services:
+  backend:
+    image: chessinsight-backend:perf
+    container_name: ${COMPOSE_PROJECT_NAME:-chessinsight-perf}-backend
+    environment:
+      - ENGINE_STOCKFISH_HOST=${ENGINE_STOCKFISH_HOST:-stockfish-mock}
+      - ENGINE_STOCKFISH_PORT=${ENGINE_STOCKFISH_PORT:-5555}
+      - ENGINE_STOCKFISH_THREADS=${ENGINE_STOCKFISH_THREADS:-2}
+      - ENGINE_STOCKFISH_HASH=${ENGINE_STOCKFISH_HASH:-128}
+      - ENGINE_STOCKFISH_PONDER=${ENGINE_STOCKFISH_PONDER:-false}
+      - PG_URL=jdbc:postgresql://postgres-master:5432/${DB_NAME:-chess_insight}
+      - PG_USER=${DB_USER:-admin}
+      - PG_PASS=${DB_PASSWORD:-admin}
+      - SERVER_PORT=8080
+    depends_on:
+      - postgres-master
+      - redis
+      - stockfish-mock
+    ports:
+      - "${PERF_BACKEND_PORT:-18080}:8080"
+    networks:
+      - chessnet
+
+  stockfish-mock:
+    image: chessinsight-stockfish-mock:perf
+    container_name: ${COMPOSE_PROJECT_NAME:-chessinsight-perf}-stockfish-mock
+    profiles: ["mock"]
+    networks:
+      - chessnet
+
+  postgres-master:
+    image: postgres:15
+    container_name: ${COMPOSE_PROJECT_NAME:-chessinsight-perf}-postgres-master
+    environment:
+      POSTGRES_DB: ${DB_NAME:-chess_insight}
+      POSTGRES_USER: ${DB_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-admin}
+      READONLY_USER: ${DB_READONLY_USER:-readonly}
+      READONLY_PASSWORD: ${DB_READONLY_PASSWORD:-readonly}
+      REPLICATION_USER: ${DB_REPLICATION_USER:-replicator}
+      REPLICATION_PASSWORD: ${DB_REPLICATION_PASSWORD:-replicator}
+    volumes:
+      - postgres-master-data:/var/lib/postgresql/data
+      - ../../postgres/init:/docker-entrypoint-initdb.d:ro
+    command:
+      - postgres
+      - -c
+      - wal_level=replica
+      - -c
+      - max_wal_senders=10
+      - -c
+      - max_replication_slots=10
+      - -c
+      - hot_standby=on
+    networks:
+      - chessnet
+
+  redis:
+    image: redis:7-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-chessinsight-perf}-redis
+    networks:
+      - chessnet
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: ${COMPOSE_PROJECT_NAME:-chessinsight-perf}-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "${PERF_PROMETHEUS_PORT:-19090}:9090"
+    depends_on:
+      - cadvisor
+      - node-exporter
+      - backend
+    networks:
+      - chessnet
+
+  grafana-perf:
+    image: grafana/grafana:10.4.2
+    container_name: ${COMPOSE_PROJECT_NAME:-chessinsight-perf}-grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    ports:
+      - "${PERF_GRAFANA_PORT:-13000}:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards-json:ro
+    depends_on:
+      - prometheus
+    networks:
+      - chessnet
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.55.1
+    container_name: ${COMPOSE_PROJECT_NAME:-chessinsight-perf}-cadvisor
+    privileged: true
+    command:
+      - --docker_only=true
+      - --housekeeping_interval=5s
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg
+    networks:
+      - chessnet
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: ${COMPOSE_PROJECT_NAME:-chessinsight-perf}-node-exporter
+    command:
+      - --path.rootfs=/host
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($|/)
+    volumes:
+      - /:/host:ro,rslave
+    networks:
+      - chessnet
+
+volumes:
+  postgres-master-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  chessnet:
