@@ -18,6 +18,7 @@ M2_CACHE_VOLUME=${M2_CACHE_VOLUME:-chessinsight-m2-cache}
 MAVEN_REPO_LOCAL=${MAVEN_REPO_LOCAL:-/m2/repository}
 JAVA_TOOL_OPTIONS=${JAVA_TOOL_OPTIONS:--XX:+EnableDynamicAgentLoading -Xshare:off --sun-misc-unsafe-memory-access=allow}
 JACOCO_SKIP=${JACOCO_SKIP:-true}
+TEST_STOCKFISH_PROVIDER=${TEST_STOCKFISH_PROVIDER:-mock}
 TEST_RUN_ID=${TEST_RUN_ID:-$(cat /proc/sys/kernel/random/uuid | tr -d '-')}
 
 if [ -z "$TEST_DB_SCHEMA_NAME" ]; then
@@ -84,6 +85,7 @@ docker run --rm \
   -e TEST_DB_SCHEMA_NAME="$TEST_DB_SCHEMA_NAME" \
   -e MAVEN_REPO_LOCAL="$MAVEN_REPO_LOCAL" \
   -e JACOCO_SKIP="$JACOCO_SKIP" \
+  -e TEST_STOCKFISH_PROVIDER="$TEST_STOCKFISH_PROVIDER" \
   -e JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS" \
   -v "$M2_CACHE_VOLUME":/m2 \
   -v "$PWD":/workspace \
