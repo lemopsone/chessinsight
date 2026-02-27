@@ -90,6 +90,18 @@ public class GameCreationScenarioE2E extends AbstractWebIntegrationTest {
         );
         assertEquals(HttpStatus.OK, getResp.getStatusCode());
 
+        ResponseEntity<String> analysisResp = restTemplate.exchange(
+                url("/api/v1/games/" + gameId + "/analysis"),
+                HttpMethod.POST,
+                new HttpEntity<>(headers),
+                String.class
+        );
+        assertEquals(HttpStatus.OK, analysisResp.getStatusCode(), analysisResp.getBody());
+        JsonNode analysisJson = objectMapper.readTree(analysisResp.getBody());
+        assertEquals(gameId, analysisJson.path("gameId").asText());
+        assertTrue(analysisJson.path("accuracyWhite").isNumber());
+        assertTrue(analysisJson.path("accuracyBlack").isNumber());
+
         ResponseEntity<Void> deleteResp = restTemplate.exchange(
                 url("/api/v1/games/" + gameId),
                 HttpMethod.DELETE,

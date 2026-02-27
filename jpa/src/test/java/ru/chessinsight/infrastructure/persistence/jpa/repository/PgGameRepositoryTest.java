@@ -172,21 +172,22 @@ class PgGameRepositoryTest {
     }
 
     @Test
-    void delete_deletesMappedEntity() {
-        Game game = GameBuilder.game().build();
-        GameEntity entity = GameEntityMother.fullGameEntity();
-        when(mapper.toEntity(game)).thenReturn(entity);
+    void delete_deletesById() {
+        UUID gameId = UUID.randomUUID();
+        Game game = GameBuilder.game().withId(gameId).build();
 
         repository.delete(game);
 
-        verify(jpaRepository).delete(entity);
+        verify(jpaRepository).deleteById(gameId);
+        verifyNoMoreInteractions(jpaRepository);
+        verifyNoInteractions(mapper);
     }
 
     @Test
-    void delete_throws_whenMapperFails() {
-        Game game = GameBuilder.game().build();
-        when(mapper.toEntity(game)).thenThrow(new IllegalArgumentException("bad map"));
+    void delete_throws_whenIdMissing() {
+        Game game = GameBuilder.game().withId(null).build();
 
         assertThrows(IllegalArgumentException.class, () -> repository.delete(game));
+        verifyNoInteractions(jpaRepository);
     }
 }
