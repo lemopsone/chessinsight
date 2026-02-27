@@ -66,6 +66,9 @@ public class PgGameRepository implements GameRepository {
 
     @Override
     public void delete(Game game) {
-        jpaRepository.delete(mapper.toEntity(game));
+        if (game == null || game.getId() == null) {
+            throw new IllegalArgumentException("Game id must not be null for delete");
+        }
+        jpaRepository.deleteById(game.getId());
     }
 }
