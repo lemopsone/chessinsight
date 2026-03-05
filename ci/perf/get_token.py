@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 import urllib.error
@@ -10,7 +11,9 @@ import urllib.request
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
-DEFAULT_AUTH_STATE = ROOT_DIR / "reports" / "perf" / "manual-state" / "auth.json"
+AUTH_STATE_ENV = "PERF_AUTH_STATE_FILE"
+DEFAULT_AUTH_STATE = Path("/tmp/chessinsight-perf/auth.json")
+LEGACY_AUTH_STATE = ROOT_DIR / "reports" / "perf" / "manual-state" / "auth.json"
 
 
 def parse_args() -> argparse.Namespace:
@@ -20,7 +23,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--email", default="")
     parser.add_argument("--password", default="perfPass12345")
     parser.add_argument("--request-timeout-sec", type=float, default=30.0)
-    parser.add_argument("--out-file", default=str(DEFAULT_AUTH_STATE))
+    parser.add_argument("--out-file", default=os.getenv(AUTH_STATE_ENV, str(DEFAULT_AUTH_STATE)))
     return parser.parse_args()
 
 
@@ -116,7 +119,18 @@ def main() -> int:
         fail(f"auth response has no accessToken: {token_response_json}")
 
     out_file = Path(args.out_file)
-    out_file.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        out_file.parent.mkdir(parents=True, exist_ok=True)
+    except PermissionError:
+        if out_file == LEGACY_AUTH_STATE:
+            out_file = DEFAULT_AUTH_STATE
+            out_file.parent.mkdir(parents=True, exist_ok=True)
+            print(
+                f"[auth] cannot write legacy auth state, fallback to: {out_file}",
+                file=sys.stderr,
+            )
+        else:
+            fail(f"cannot create output directory for auth state: {out_file.parent}")
     state = {
         "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
         "base_url": base_url,

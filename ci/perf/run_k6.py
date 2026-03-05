@@ -12,7 +12,9 @@ import uuid
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
-AUTH_STATE_FILE = ROOT_DIR / "reports" / "perf" / "manual-state" / "auth.json"
+AUTH_STATE_ENV = "PERF_AUTH_STATE_FILE"
+DEFAULT_AUTH_STATE_FILE = Path("/tmp/chessinsight-perf/auth.json")
+LEGACY_AUTH_STATE_FILE = ROOT_DIR / "reports" / "perf" / "manual-state" / "auth.json"
 MOVE_PAYLOADS_FILE = ROOT_DIR / "ci" / "perf" / "move-analysis-payloads.json"
 K6_SCRIPT_DIR = ROOT_DIR / "ci" / "perf"
 K6_SCRIPT_PATH = "/scripts/k6-analysis-rps.js"
@@ -44,16 +46,25 @@ def fail(msg: str) -> None:
     raise SystemExit(1)
 
 
+def auth_state_candidates() -> list[Path]:
+    env_path = os.getenv(AUTH_STATE_ENV, "").strip()
+    if env_path:
+        return [Path(env_path), LEGACY_AUTH_STATE_FILE, DEFAULT_AUTH_STATE_FILE]
+    return [DEFAULT_AUTH_STATE_FILE, LEGACY_AUTH_STATE_FILE]
+
+
 def load_token() -> str:
-    if not AUTH_STATE_FILE.is_file():
-        fail(f"auth file not found: {AUTH_STATE_FILE}. Run ci/perf/manual_prepare_analysis_state.py once.")
+    auth_file = next((candidate for candidate in auth_state_candidates() if candidate.is_file()), None)
+    if auth_file is None:
+        checked = ", ".join(str(candidate) for candidate in auth_state_candidates())
+        fail(f"auth file not found (checked: {checked}). Run ci/perf/manual_prepare_analysis_state.py once.")
     try:
-        state = json.loads(AUTH_STATE_FILE.read_text(encoding="utf-8"))
+        state = json.loads(auth_file.read_text(encoding="utf-8"))
     except Exception as exc:  # noqa: BLE001
         fail(f"cannot parse auth file: {exc}")
     token = str(state.get("token") or state.get("accessToken") or "").strip()
     if not token:
-        fail(f"token is missing in auth file: {AUTH_STATE_FILE}")
+        fail(f"token is missing in auth file: {auth_file}")
     return token
 
 

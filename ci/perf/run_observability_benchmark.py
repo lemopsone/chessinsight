@@ -443,12 +443,14 @@ def main() -> int:
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    auth_state_file = Path("/tmp/chessinsight-perf/auth.json")
 
     base_env = os.environ.copy()
     base_env["ENGINE_STOCKFISH_HOST"] = "stockfish-mock"
     base_env["SECURITY_AUTH_REQUIRE_EMAIL_OTP"] = "false"
     base_env["SECURITY_AUTH_MAIL_ENABLED"] = "false"
     base_env["MANAGEMENT_HEALTH_ELASTICSEARCH_ENABLED"] = "false"
+    base_env["PERF_AUTH_STATE_FILE"] = str(auth_state_file)
 
     host_system = platform.system().lower()
     runtime_profile = "macos" if host_system == "darwin" else "linux"
@@ -524,6 +526,8 @@ def main() -> int:
                 "ci/perf/get_token.py",
                 "--base-url",
                 args.backend_base_url,
+                "--out-file",
+                str(auth_state_file),
             ],
             env=base_env,
             timeout_sec=120,
