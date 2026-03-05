@@ -1,5 +1,6 @@
 package ru.chessinsight.application.game.analysis.service.impl;
 
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import ru.chessinsight.application.common.logger.service.Logger;
 import ru.chessinsight.application.game.analysis.engine.ChessEngine;
@@ -28,6 +29,7 @@ import java.util.*;
 
 @Service
 public class DefaultAnalysisService implements AnalysisService {
+    private static final org.slf4j.Logger log = LoggerFactory.getLogger(DefaultAnalysisService.class);
 
     private final ChessEngine engine;
     private final AccuracyCalculationService accuracy;
@@ -157,6 +159,7 @@ public class DefaultAnalysisService implements AnalysisService {
 
     @Override
     public MoveAnalysisDTO analyzeMove(MoveDTO move) {
+        long startedAtNanos = System.nanoTime();
         String uciText = move.moveUCI();
         Position pos = Position.fromFEN(move.positionFEN());
         if (uciText == null || uciText.isBlank()) {
@@ -164,48 +167,92 @@ public class DefaultAnalysisService implements AnalysisService {
             uciText = uci.moveToUci(mv);
         }
 
-        var req = new EngineMoveRequest(
-                move.positionFEN(),
-                uciText,
-                8,
-                120, null,
-               1
-        );
-
-        var res = engine.analyzeMove(req);
-
-        Integer mateScore = res.mateScore();
-        if (mateScore == null) {
-            Move played = uci.uciToMove(uciText, pos);
-            Position after = MoveMaker.apply(pos, played);
-            var validator = new ru.chessinsight.domain.chess.move.service.MoveValidator();
-            boolean inCheck = validator.isKingInCheck(after, after.sideToMove());
-            boolean noMoves = validator.sideLegalMoves(after, after.sideToMove()).isEmpty();
-            if (inCheck && noMoves) {
-                mateScore = 0;
-            }
+        if (log.isDebugEnabled()) {
+            log.debug(
+                    "move.analysis.start moveNum={} san={} uci={} fenLength={}",
+                    move.moveNum(),
+                    move.moveSAN(),
+                    uciText,
+                    move.positionFEN() == null ? 0 : move.positionFEN().length()
+            );
         }
 
-        Double playedEval = (res.evalCp() != null) ? (res.evalCp() / 100.0) : (mateScore != null ? Double.POSITIVE_INFINITY : 0.0);
+        try {
+            var req = new EngineMoveRequest(
+                    move.positionFEN(),
+                    uciText,
+                    8,
+                    120, null,
+                   1
+            );
 
-        Double bestEval = (res.evalCp() != null && res.cpLoss() != null)
-                ? ((res.evalCp() + res.cpLoss()) / 100.0)
-                : playedEval;
+            var res = engine.analyzeMove(req);
 
-        var bestMoveDTO = new MoveDTO(
-                move.moveNum(),
-                res.positionFEN(),
-                res.bestMoveSan(),
-                res.bestMoveUci()
-        );
+            Integer mateScore = res.mateScore();
+            if (mateScore == null) {
+                Move played = uci.uciToMove(uciText, pos);
+                Position after = MoveMaker.apply(pos, played);
+                var validator = new ru.chessinsight.domain.chess.move.service.MoveValidator();
+                boolean inCheck = validator.isKingInCheck(after, after.sideToMove());
+                boolean noMoves = validator.sideLegalMoves(after, after.sideToMove()).isEmpty();
+                if (inCheck && noMoves) {
+                    mateScore = 0;
+                }
+            }
 
-        return new MoveAnalysisDTO(
-                res.positionFEN(),
-                bestMoveDTO,
-                bestEval,
-                playedEval,
-                mateScore
-        );
+            Double playedEval = (res.evalCp() != null) ? (res.evalCp() / 100.0) : (mateScore != null ? Double.POSITIVE_INFINITY : 0.0);
+
+            Double bestEval = (res.evalCp() != null && res.cpLoss() != null)
+                    ? ((res.evalCp() + res.cpLoss()) / 100.0)
+                    : playedEval;
+
+            var bestMoveDTO = new MoveDTO(
+                    move.moveNum(),
+                    res.positionFEN(),
+                    res.bestMoveSan(),
+                    res.bestMoveUci()
+            );
+
+            MoveAnalysisDTO result = new MoveAnalysisDTO(
+                    res.positionFEN(),
+                    bestMoveDTO,
+                    bestEval,
+                    playedEval,
+                    mateScore
+            );
+
+            long durationMs = (System.nanoTime() - startedAtNanos) / 1_000_000L;
+            logger.info(
+                    "move.analysis.complete moveNum=" + move.moveNum()
+                            + " uci=" + uciText
+                            + " durationMs=" + durationMs
+                            + " eval=" + playedEval
+                            + " mate=" + mateScore
+            );
+            if (log.isDebugEnabled()) {
+                log.debug(
+                        "move.analysis.result moveNum={} bestUci={} bestSan={} bestEval={} playerEval={} cpLoss={}",
+                        move.moveNum(),
+                        res.bestMoveUci(),
+                        res.bestMoveSan(),
+                        bestEval,
+                        playedEval,
+                        res.cpLoss()
+                );
+            }
+
+            return result;
+        } catch (RuntimeException ex) {
+            long durationMs = (System.nanoTime() - startedAtNanos) / 1_000_000L;
+            logger.error(
+                    "move.analysis.failed moveNum=" + move.moveNum()
+                            + " uci=" + uciText
+                            + " durationMs=" + durationMs
+                            + " reason=" + ex.getClass().getSimpleName()
+                            + ": " + ex.getMessage()
+            );
+            throw ex;
+        }
     }
 
     private GameAnalysisDTO existingGameAnalysis(Game game) {

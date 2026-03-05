@@ -12,6 +12,18 @@ services:
       - ENGINE_STOCKFISH_THREADS=2
       - ENGINE_STOCKFISH_HASH=128
       - ENGINE_STOCKFISH_PONDER=false
+      - TRACING_ENABLED=${TRACING_ENABLED:-false}
+      - TRACING_SAMPLING_PROBABILITY=${TRACING_SAMPLING_PROBABILITY:-1.0}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318/v1/traces}
+      - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-backend}
+      - MANAGEMENT_HEALTH_ELASTICSEARCH_ENABLED=${MANAGEMENT_HEALTH_ELASTICSEARCH_ENABLED:-false}
+      - LOGGING_LEVEL_ROOT=${LOG_LEVEL_ROOT:-INFO}
+      - LOGGING_LEVEL_RU_CHESSINSIGHT=${LOG_LEVEL_CHESSINSIGHT:-INFO}
+      - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB=${LOG_LEVEL_SPRING_WEB:-INFO}
+      - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY=${LOG_LEVEL_SPRING_SECURITY:-INFO}
+      - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB_FILTER=${LOG_LEVEL_SPRING_WEBFILTER:-INFO}
+      - LOGGING_LEVEL_IO_MICROMETER_TRACING=${LOG_LEVEL_MICROMETER_TRACING:-INFO}
+      - LOGGING_LEVEL_IO_OPENTELEMETRY_EXPORTER=${LOG_LEVEL_OPENTELEMETRY_EXPORTER:-INFO}
       - PG_URL=jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
       - PG_USER=${DB_USER}
       - PG_PASS=${DB_PASSWORD}
@@ -30,6 +42,7 @@ services:
     depends_on:
       - postgres-master
       - redis
+      - otel-collector
     deploy:
       resources:
         limits:
@@ -412,6 +425,34 @@ services:
     networks:
       - chessnet
 
+  jaeger:
+    image: jaegertracing/all-in-one:1.57.0
+    container_name: jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+      QUERY_BASE_PATH: /jaeger
+    ports:
+      - "16686:16686"
+    networks:
+      - chessnet
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.123.0
+    container_name: otel-collector
+    user: "0:0"
+    command:
+      - --config=/etc/otelcol-contrib/config.yaml
+    volumes:
+      - ./monitoring/otel/otel-collector-config.yml:/etc/otelcol-contrib/config.yaml:ro
+      - ./reports/perf/otel:/var/lib/otel
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    depends_on:
+      - jaeger
+    networks:
+      - chessnet
+
   promtail:
     image: grafana/promtail:latest
     container_name: promtail
@@ -457,12 +498,11 @@ services:
       - "9090:9090"
     depends_on:
       - backend
-      - cadvisor
-      - node-exporter
     networks:
       - chessnet
 
   cadvisor:
+    profiles: ["linux"]
     image: gcr.io/cadvisor/cadvisor:v0.55.1
     container_name: cadvisor
     privileged: true
@@ -480,7 +520,23 @@ services:
     networks:
       - chessnet
 
+  cadvisor-desktop:
+    profiles: ["macos"]
+    image: gcr.io/cadvisor/cadvisor:v0.55.1
+    container_name: cadvisor-desktop
+    command:
+      - --docker_only=true
+      - --housekeeping_interval=5s
+      - --store_container_labels=false
+    volumes:
+      - /:/rootfs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys:/sys:ro
+    networks:
+      - chessnet
+
   node-exporter:
+    profiles: ["linux"]
     image: prom/node-exporter:v1.8.2
     container_name: node-exporter
     command:

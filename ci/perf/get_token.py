@@ -5,9 +5,9 @@ import argparse
 import json
 import sys
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
-
-import requests
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 DEFAULT_AUTH_STATE = ROOT_DIR / "reports" / "perf" / "manual-state" / "auth.json"
@@ -29,22 +29,50 @@ def fail(msg: str) -> None:
     raise SystemExit(1)
 
 
-def sign_up(base_url: str, login: str, email: str, password: str, timeout_sec: float) -> requests.Response:
+def post_json(url: str, payload: dict[str, str], timeout_sec: float) -> tuple[int, dict[str, object], str]:
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json", "Accept": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
+            body = resp.read().decode("utf-8")
+            status = int(resp.status)
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8")
+        status = int(exc.code)
+    except urllib.error.URLError as exc:
+        fail(f"request failed for {url}: {exc}")
+
+    payload_json: dict[str, object] = {}
+    if body.strip():
+        try:
+            parsed = json.loads(body)
+            if isinstance(parsed, dict):
+                payload_json = parsed
+        except json.JSONDecodeError:
+            pass
+    return status, payload_json, body
+
+
+def sign_up(base_url: str, login: str, email: str, password: str, timeout_sec: float) -> tuple[int, dict[str, object], str]:
     payload = {
         "login": login,
         "email": email,
         "password": password,
     }
-    return requests.post(f"{base_url}/api/v1/users", json=payload, timeout=timeout_sec)
+    return post_json(f"{base_url}/api/v1/users", payload, timeout_sec)
 
 
-def sign_in(base_url: str, login: str, password: str, timeout_sec: float) -> requests.Response:
+def sign_in(base_url: str, login: str, password: str, timeout_sec: float) -> tuple[int, dict[str, object], str]:
     payload = {
         "loginOrEmail": login,
         "passwordOrToken": password,
         "authType": "JWT",
     }
-    return requests.post(f"{base_url}/api/v1/auth/sessions", json=payload, timeout=timeout_sec)
+    return post_json(f"{base_url}/api/v1/auth/sessions", payload, timeout_sec)
 
 
 def main() -> int:
@@ -57,19 +85,31 @@ def main() -> int:
     base_url = args.base_url.rstrip("/")
     email = args.email.strip() or f"{args.login.strip()}@example.com"
 
-    sign_up_resp = sign_up(base_url, args.login.strip(), email, args.password, args.request_timeout_sec)
-    token_response_json: dict[str, str]
-    if sign_up_resp.status_code == 201:
-        token_response_json = sign_up_resp.json() or {}
+    sign_up_status, sign_up_json, sign_up_body = sign_up(
+        base_url,
+        args.login.strip(),
+        email,
+        args.password,
+        args.request_timeout_sec,
+    )
+
+    token_response_json: dict[str, object]
+    if sign_up_status == 201:
+        token_response_json = sign_up_json
         print(f"[auth] user created: {args.login}", file=sys.stderr)
-    elif sign_up_resp.status_code == 409:
-        sign_in_resp = sign_in(base_url, args.login.strip(), args.password, args.request_timeout_sec)
-        if sign_in_resp.status_code != 200:
-            fail(f"sign-in failed: status={sign_in_resp.status_code}, body={sign_in_resp.text}")
-        token_response_json = sign_in_resp.json() or {}
+    elif sign_up_status == 409:
+        sign_in_status, sign_in_json, sign_in_body = sign_in(
+            base_url,
+            args.login.strip(),
+            args.password,
+            args.request_timeout_sec,
+        )
+        if sign_in_status != 200:
+            fail(f"sign-in failed: status={sign_in_status}, body={sign_in_body}")
+        token_response_json = sign_in_json
         print(f"[auth] user exists, signed in: {args.login}", file=sys.stderr)
     else:
-        fail(f"sign-up failed: status={sign_up_resp.status_code}, body={sign_up_resp.text}")
+        fail(f"sign-up failed: status={sign_up_status}, body={sign_up_body}")
 
     access_token = str(token_response_json.get("accessToken") or "").strip()
     if not access_token:

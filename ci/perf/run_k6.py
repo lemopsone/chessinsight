@@ -8,6 +8,7 @@ import os
 import subprocess
 import sys
 import time
+import uuid
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -30,6 +31,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mode", choices=["fixed", "ramping"], default="fixed")
     parser.add_argument("--rps", type=int, default=0, help="Fixed mode target RPS")
     parser.add_argument("--max-rps", type=int, default=0, help="Ramping mode max RPS")
+    parser.add_argument("--duration", default=DURATION, help="Fixed mode duration, e.g. 45s, 2m")
+    parser.add_argument("--ramp-step-duration", default=RAMP_STEP_DURATION, help="Ramping step duration")
+    parser.add_argument("--ramp-hold-duration", default=RAMP_HOLD_DURATION, help="Ramping hold duration")
+    parser.add_argument("--base-url", default=BASE_URL, help="Target base URL from k6 container network")
+    parser.add_argument("--phase", default=PHASE, help="k6 scenario phase/tag label")
     return parser.parse_args()
 
 
@@ -71,13 +77,24 @@ def validate_payload() -> None:
             fail(f"payload missing required field: {field}")
 
 
-def run_k6(mode: str, rps: int, max_rps: int, token: str) -> int:
+def run_k6(
+    mode: str,
+    rps: int,
+    max_rps: int,
+    token: str,
+    duration: str,
+    ramp_step_duration: str,
+    ramp_hold_duration: str,
+    base_url: str,
+    phase: str,
+) -> int:
     compose_project = os.getenv("COMPOSE_PROJECT_NAME", "chessinsight")
     network_name = f"{compose_project}_chessnet"
     load_reference = rps if mode == "fixed" else max_rps
     pre_allocated_vus = max(4, int(math.ceil(load_reference * 4.0)))
     max_vus = max(64, int(math.ceil(load_reference * 40.0)), pre_allocated_vus)
-    container_name = f"manual-k6-move-analysis-{int(time.time())}"
+    unique_suffix = uuid.uuid4().hex[:10]
+    container_name = f"manual-k6-move-analysis-{int(time.time())}-{unique_suffix}"
 
     cmd = [
         "docker",
@@ -90,7 +107,7 @@ def run_k6(mode: str, rps: int, max_rps: int, token: str) -> int:
         "-v",
         f"{K6_SCRIPT_DIR}:/scripts:ro",
         "-e",
-        f"BASE_URL={BASE_URL}",
+        f"BASE_URL={base_url}",
         "-e",
         f"TOKEN={token}",
         "-e",
@@ -112,20 +129,20 @@ def run_k6(mode: str, rps: int, max_rps: int, token: str) -> int:
             "-e",
             f"RPS={rps}",
             "-e",
-            f"DURATION={DURATION}",
+            f"DURATION={duration}",
             "-e",
-            f"PHASE={PHASE}-fixed",
+            f"PHASE={phase}-fixed",
         ])
     else:
         cmd.extend([
             "-e",
             f"MAX_RPS={max_rps}",
             "-e",
-            f"RAMP_STEP_DURATION={RAMP_STEP_DURATION}",
+            f"RAMP_STEP_DURATION={ramp_step_duration}",
             "-e",
-            f"RAMP_HOLD_DURATION={RAMP_HOLD_DURATION}",
+            f"RAMP_HOLD_DURATION={ramp_hold_duration}",
             "-e",
-            f"PHASE={PHASE}-ramping",
+            f"PHASE={phase}-ramping",
         ])
 
     # Keep k6 command at the end after env vars are applied.
@@ -133,9 +150,17 @@ def run_k6(mode: str, rps: int, max_rps: int, token: str) -> int:
 
     print(
         f"[k6] mode={mode} rps={rps if mode == 'fixed' else max_rps} "
+        f"duration={duration if mode == 'fixed' else ramp_step_duration + '+' + ramp_hold_duration} "
         f"network={network_name} container={container_name} "
         f"(Ctrl+C to stop)",
         file=sys.stderr,
+    )
+    subprocess.run(
+        ["docker", "rm", "-f", container_name],
+        cwd=ROOT_DIR,
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
     proc = subprocess.Popen(cmd, cwd=ROOT_DIR)
     try:
@@ -158,7 +183,17 @@ def main() -> int:
         fail(f"--max-rps must be > 0 in ramping mode, got {args.max_rps}")
     validate_payload()
     token = load_token()
-    return run_k6(args.mode, args.rps, args.max_rps, token)
+    return run_k6(
+        args.mode,
+        args.rps,
+        args.max_rps,
+        token,
+        args.duration,
+        args.ramp_step_duration,
+        args.ramp_hold_duration,
+        args.base_url,
+        args.phase,
+    )
 
 
 if __name__ == "__main__":
