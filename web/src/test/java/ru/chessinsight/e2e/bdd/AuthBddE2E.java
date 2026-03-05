@@ -13,5 +13,5 @@ import static io.cucumber.junit.platform.engine.Constants.PLUGIN_PROPERTY_NAME;
 @SelectClasspathResource("features/authentication")
 @ConfigurationParameter(key = GLUE_PROPERTY_NAME, value = "ru.chessinsight.e2e.bdd")
 @ConfigurationParameter(key = PLUGIN_PROPERTY_NAME, value = "pretty")
-public class AuthBddE2EIT {
+public class AuthBddE2E {
 }
