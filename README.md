@@ -194,3 +194,21 @@ TEST_STOCKFISH_PROVIDER=real ./ci/run-stage.sh e2e
 ```bash
 ./ci/run-demo-env.sh real
 ```
+
+# 14. Нагрузочное тестирование анализа партий (mock Stockfish)
+
+Полный контур нагрузочного тестирования (деградация, рабочая нагрузка, восстановление после перегруза) описан в:
+
+`docs/analysis-load-testing.md`
+
+Быстрый запуск:
+
+```bash
+STEADY_TRIALS=1 STEADY_REQUESTS=20 RECOVERY_TRIALS=1 ./ci/run-analysis-perf.sh
+```
+
+Полный запуск (по умолчанию `STEADY_TRIALS=100`):
+
+```bash
+./ci/run-analysis-perf.sh
+```

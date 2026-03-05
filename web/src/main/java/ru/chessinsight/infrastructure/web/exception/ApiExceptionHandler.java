@@ -19,6 +19,7 @@ import ru.chessinsight.application.auth.exception.AuthException;
 import ru.chessinsight.application.auth.exception.UserExistsException;
 import ru.chessinsight.application.auth.exception.WrongCredentialsException;
 import ru.chessinsight.application.exception.ApplicationException;
+import ru.chessinsight.application.game.analysis.engine.exception.EngineException;
 import ru.chessinsight.application.game.exception.GameNotFoundException;
 import ru.chessinsight.application.game.training.service.exception.ScenarioAccessException;
 import ru.chessinsight.application.game.training.service.exception.ScenarioNotFoundException;
@@ -138,6 +139,17 @@ public class ApiExceptionHandler {
         String detail = ex.getReason() != null ? ex.getReason() : status.getReasonPhrase();
         return ResponseEntity.status(status)
                 .body(ProblemDetailsFactory.create(status, detail, request.getRequestURI()));
+    }
+
+    @ExceptionHandler(EngineException.class)
+    public ResponseEntity<ProblemDetails> handleEngineError(
+            EngineException ex,
+            HttpServletRequest request
+    ) {
+        String message = ex.getMessage() != null ? ex.getMessage() : "Engine error";
+        HttpStatus status = HttpStatus.GATEWAY_TIMEOUT;
+        return ResponseEntity.status(status)
+                .body(ProblemDetailsFactory.create(status, message, request.getRequestURI()));
     }
 
     @ExceptionHandler(DataAccessException.class)

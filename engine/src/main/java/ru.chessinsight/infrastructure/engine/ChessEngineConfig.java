@@ -26,8 +26,11 @@ public class ChessEngineConfig {
             @Value("${engine.stockfish.defaultDepth:15}") int defaultDepth,
             @Value("${engine.stockfish.threads:2}") int threads,
             @Value("${engine.stockfish.hash:128}") int hashMb,
-            @Value("${engine.stockfish.ponder:false}") boolean ponder
+            @Value("${engine.stockfish.ponder:false}") boolean ponder,
+            @Value("${engine.stockfish.readTimeoutMs:10000}") int readTimeoutMs,
+            @Value("${engine.stockfish.poolSize:8}") int poolSize,
+            @Value("${engine.stockfish.eagerWarmup:false}") boolean eagerWarmup
     ) throws Exception {
-        return new TcpStockfish(host, port, defaultDepth, threads, hashMb, ponder);
+        return new TcpStockfish(host, port, defaultDepth, threads, hashMb, ponder, readTimeoutMs, poolSize, eagerWarmup);
     }
 }

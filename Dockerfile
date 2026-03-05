@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y wget git build-essential cmake \
 WORKDIR /build
 COPY pom.xml .
 COPY core/pom.xml core/
+COPY test-fixtures/pom.xml test-fixtures/
 COPY cli/pom.xml cli/
 COPY engine/pom.xml engine/
 COPY jpa/pom.xml jpa/

@@ -27,20 +27,32 @@ engine:
     port: 5555
     path: /usr/local/bin/stockfish
     defaultDepth: 15
+    poolSize: 32
+    eagerWarmup: true
+    readTimeoutMs: 5000
+
+analysis:
+  move:
+    http:
+      max-concurrent-requests: 48
+      acquire-timeout-ms: 500
 
 server:
   port: 8080
   servlet:
     context-path: /api
-
 jwt:
   secret: ${JWT_SECRET_KEY:asdkoasfiuwerjfniwef_32124Q_e}
   expiration: 3600
 
+security:
+  auth:
+    user-cache-ttl-seconds: 60
+
 logging:
   level:
     root: info
-    ru.chessinsight: debug
+    ru.chessinsight: info
 
 springdoc:
   api-docs:
@@ -49,3 +61,27 @@ springdoc:
   swagger-ui:
     path: /v1/swagger-ui.html
     url: /v1/openapi.yaml
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      slo:
+        http.server.requests:
+          - 50ms
+          - 100ms
+          - 200ms
+          - 500ms
+          - 1s
+          - 2s
+          - 5s
+          - 10s

@@ -27,7 +27,7 @@ class AppUserDetailsServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new AppUserDetailsService(userRepository);
+        service = new AppUserDetailsService(userRepository, 60);
     }
 
     @Test
