@@ -11,6 +11,8 @@ import ru.chessinsight.application.auth.exception.WrongCredentialsException;
 import ru.chessinsight.application.auth.service.AuthService;
 import ru.chessinsight.infrastructure.web.api.AuthApi;
 import ru.chessinsight.infrastructure.web.dto.SignInDTO;
+import ru.chessinsight.infrastructure.web.dto.RecoveryConfirmDTO;
+import ru.chessinsight.infrastructure.web.dto.RecoveryRequestDTO;
 import ru.chessinsight.infrastructure.web.dto.SignOutRequest;
 import ru.chessinsight.infrastructure.web.dto.SignUpDTO;
 import ru.chessinsight.infrastructure.web.mapper.AuthApiMapper;
@@ -61,6 +63,26 @@ public class AuthController implements AuthApi, ApiV1Controller {
     @DeleteMapping("/auth/sessions")
     public ResponseEntity<Void> signOut(@Valid @RequestBody SignOutRequest body) {
         authService.signOut(body.getRefreshToken());
+        return ResponseEntity.noContent().build();
+    }
+
+    @Override
+    @PostMapping("/auth/recovery/request")
+    public ResponseEntity<Void> requestRecovery(@Valid @RequestBody RecoveryRequestDTO body) {
+        authService.requestAccountRecovery(new ru.chessinsight.application.auth.dto.RecoveryRequestDTO(
+                body.getLoginOrEmail()
+        ));
+        return ResponseEntity.accepted().build();
+    }
+
+    @Override
+    @PostMapping("/auth/recovery/confirm")
+    public ResponseEntity<Void> confirmRecovery(@Valid @RequestBody RecoveryConfirmDTO body) {
+        authService.confirmAccountRecovery(new ru.chessinsight.application.auth.dto.RecoveryConfirmDTO(
+                body.getLoginOrEmail(),
+                body.getRecoveryCode(),
+                body.getNewPassword()
+        ));
         return ResponseEntity.noContent().build();
     }
 }

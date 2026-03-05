@@ -61,6 +61,12 @@ public class SecurityConfig {
                         .requestMatchers(
                                 HttpMethod.POST, "/v1/auth/tokens"
                         ).permitAll()
+                        .requestMatchers(
+                                HttpMethod.POST, "/v1/auth/recovery/request"
+                        ).permitAll()
+                        .requestMatchers(
+                                HttpMethod.POST, "/v1/auth/recovery/confirm"
+                        ).permitAll()
                         .requestMatchers("/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )

@@ -15,6 +15,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
+import ru.chessinsight.application.auth.exception.AccountLockedException;
 import ru.chessinsight.application.auth.exception.AuthException;
 import ru.chessinsight.application.auth.exception.UserExistsException;
 import ru.chessinsight.application.auth.exception.WrongCredentialsException;
@@ -96,6 +97,14 @@ public class ApiExceptionHandler {
             HttpServletRequest request
     ) {
         return conflict(ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(AccountLockedException.class)
+    public ResponseEntity<ProblemDetails> handleAccountLocked(
+            AccountLockedException ex,
+            HttpServletRequest request
+    ) {
+        return locked(ex.getMessage(), request);
     }
 
     @ExceptionHandler({WrongCredentialsException.class, AuthException.class})
@@ -241,6 +250,11 @@ public class ApiExceptionHandler {
     private ResponseEntity<ProblemDetails> unauthorized(String detail, HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(ProblemDetailsFactory.create(HttpStatus.UNAUTHORIZED, detail, request.getRequestURI()));
+    }
+
+    private ResponseEntity<ProblemDetails> locked(String detail, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.LOCKED)
+                .body(ProblemDetailsFactory.create(HttpStatus.LOCKED, detail, request.getRequestURI()));
     }
 
     private ResponseEntity<ProblemDetails> notFound(String detail, HttpServletRequest request) {

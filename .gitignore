@@ -45,3 +45,6 @@ build/
 **/.allure/**
 **/.idea/**
 reports/perf/
+
+.env
+.env*.local

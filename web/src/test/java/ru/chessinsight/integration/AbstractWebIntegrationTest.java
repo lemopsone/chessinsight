@@ -7,8 +7,6 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestPropertySource;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.images.builder.ImageFromDockerfile;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 import ru.chessinsight.infrastructure.web.WebApplication;
 
 import java.nio.file.Files;
@@ -20,7 +18,6 @@ import java.util.UUID;
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         classes = {WebApplication.class, WebContainerTestConfig.class}
 )
-@Testcontainers
 @ContextConfiguration(initializers = WebTestDatabaseInitializer.class)
 @TestPropertySource(properties = {
         "jwt.secret=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
@@ -34,16 +31,32 @@ public abstract class AbstractWebIntegrationTest {
     private static final int STOCKFISH_PORT = 5555;
     private static final String STOCKFISH_PROVIDER = resolveStockfishProvider();
 
-    @Container
     static final GenericContainer<?> STOCKFISH = new GenericContainer<>(stockfishImage(STOCKFISH_PROVIDER))
             .withExposedPorts(STOCKFISH_PORT);
 
+    static {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            if (STOCKFISH.isRunning()) {
+                STOCKFISH.stop();
+            }
+        }));
+    }
+
     @DynamicPropertySource
     static void registerStockfishProperties(DynamicPropertyRegistry registry) {
+        ensureStockfishStarted();
+        String host = STOCKFISH.getHost();
+        Integer port = STOCKFISH.getMappedPort(STOCKFISH_PORT);
         registry.add("engine.stockfish.mode", () -> "tcp");
-        registry.add("engine.stockfish.host", STOCKFISH::getHost);
-        registry.add("engine.stockfish.port", () -> STOCKFISH.getMappedPort(STOCKFISH_PORT));
+        registry.add("engine.stockfish.host", () -> host);
+        registry.add("engine.stockfish.port", () -> port);
         registry.add("engine.stockfish.defaultDepth", () -> 8);
+    }
+
+    private static synchronized void ensureStockfishStarted() {
+        if (!STOCKFISH.isRunning()) {
+            STOCKFISH.start();
+        }
     }
 
     private static ImageFromDockerfile stockfishImage(String provider) {
