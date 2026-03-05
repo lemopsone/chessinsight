@@ -28,6 +28,12 @@ public class WebContainerTestConfig {
         return new InMemoryRefreshTokenService();
     }
 
+    @Bean
+    @Primary
+    InMemoryAuthCodeDeliveryService authCodeDeliveryService() {
+        return new InMemoryAuthCodeDeliveryService();
+    }
+
     static class InMemoryRefreshTokenService implements RefreshTokenService {
         private final ConcurrentHashMap<String, UUID> tokenToUser = new ConcurrentHashMap<>();
         private final ConcurrentHashMap<UUID, String> userToToken = new ConcurrentHashMap<>();

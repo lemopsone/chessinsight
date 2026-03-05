@@ -9,12 +9,17 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import ru.chessinsight.application.auth.dto.AuthType;
+import ru.chessinsight.application.auth.dto.RecoveryConfirmDTO;
+import ru.chessinsight.application.auth.dto.RecoveryRequestDTO;
 import ru.chessinsight.application.auth.dto.SignInDTO;
 import ru.chessinsight.application.auth.dto.SignUpDTO;
 import ru.chessinsight.application.auth.dto.UserTokenDTO;
+import ru.chessinsight.application.auth.exception.AccountLockedException;
 import ru.chessinsight.application.auth.exception.AuthException;
 import ru.chessinsight.application.auth.exception.UserExistsException;
 import ru.chessinsight.application.auth.exception.WrongCredentialsException;
+import ru.chessinsight.application.auth.service.AuthCodeDeliveryService;
+import ru.chessinsight.application.auth.service.AuthCodeGeneratorService;
 import ru.chessinsight.application.common.logger.service.Logger;
 import ru.chessinsight.domain.user.model.Role;
 import ru.chessinsight.domain.user.model.User;
@@ -45,12 +50,16 @@ class JwtAuthServiceTest {
     private PasswordHasher passwordHasher;
     @Mock
     private Logger logger;
+    @Mock
+    private AuthCodeDeliveryService authCodeDeliveryService;
+    @Mock
+    private AuthCodeGeneratorService authCodeGeneratorService;
 
     private JwtAuthService service;
 
     @BeforeEach
     void setUp() {
-        service = new JwtAuthService(userRepository, jwtTokenProvider, refreshTokenService, passwordHasher, logger);
+        service = buildService(false, 5);
     }
 
     @AfterEach
@@ -91,7 +100,7 @@ class JwtAuthServiceTest {
     }
 
     @Test
-    void signIn_returnsTokens_whenCredentialsValid() {
+    void signIn_returnsTokens_whenCredentialsValid_andOtpDisabled() {
         User user = UserBuilder.user()
                 .withId(UUID.randomUUID())
                 .withLogin("alice")
@@ -110,8 +119,83 @@ class JwtAuthServiceTest {
     }
 
     @Test
+    void signIn_requiresSecondFactor_whenOtpEnabled() {
+        service = buildService(true, 5);
+
+        User user = UserBuilder.user()
+                .withId(UUID.randomUUID())
+                .withLogin("alice")
+                .withEmail("alice@example.com")
+                .withPasswordHash("hashed")
+                .build();
+        when(userRepository.findOneByLogin("alice")).thenReturn(Optional.of(user));
+        when(passwordHasher.verify("pass", "hashed")).thenReturn(true);
+        when(authCodeGeneratorService.generateOtpCode()).thenReturn("123456");
+
+        assertThrows(AuthException.class, () -> service.signIn(new SignInDTO("alice", "pass", AuthType.JWT)));
+
+        when(jwtTokenProvider.generateAccessToken(user.getId())).thenReturn("access");
+        when(jwtTokenProvider.generateRefreshToken(user.getId())).thenReturn("refresh");
+        UserTokenDTO result = service.signIn(new SignInDTO("alice", "123456", AuthType.EMAIL_OTP));
+
+        assertEquals("access", result.accessToken());
+        assertEquals("refresh", result.refreshToken());
+    }
+
+    @Test
+    void signIn_locksAccount_afterMaxFailedAttempts() {
+        service = buildService(false, 3);
+
+        User user = UserBuilder.user()
+                .withId(UUID.randomUUID())
+                .withLogin("alice")
+                .withPasswordHash("hashed")
+                .build();
+        when(userRepository.findOneByLogin("alice")).thenReturn(Optional.of(user));
+        when(passwordHasher.verify("bad", "hashed")).thenReturn(false);
+
+        assertThrows(WrongCredentialsException.class, () -> service.signIn(new SignInDTO("alice", "bad", AuthType.JWT)));
+        assertThrows(WrongCredentialsException.class, () -> service.signIn(new SignInDTO("alice", "bad", AuthType.JWT)));
+        assertThrows(AccountLockedException.class, () -> service.signIn(new SignInDTO("alice", "bad", AuthType.JWT)));
+    }
+
+    @Test
+    void recovery_resetsPasswordAndUnlocksAccount() {
+        service = buildService(false, 2);
+
+        User user = UserBuilder.user()
+                .withId(UUID.randomUUID())
+                .withLogin("alice")
+                .withEmail("alice@example.com")
+                .withPasswordHash("hashed")
+                .build();
+
+        when(userRepository.findOneByLogin("alice")).thenReturn(Optional.of(user));
+        when(passwordHasher.verify("bad", "hashed")).thenReturn(false);
+        when(authCodeGeneratorService.generateRecoveryCode()).thenReturn("654321");
+
+        assertThrows(WrongCredentialsException.class, () -> service.signIn(new SignInDTO("alice", "bad", AuthType.JWT)));
+        assertThrows(AccountLockedException.class, () -> service.signIn(new SignInDTO("alice", "bad", AuthType.JWT)));
+
+        service.requestAccountRecovery(new RecoveryRequestDTO("alice"));
+
+        when(passwordHasher.hash("newPass123")).thenReturn("newHashed");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.confirmAccountRecovery(new RecoveryConfirmDTO("alice", "654321", "newPass123"));
+
+        when(passwordHasher.verify("newPass123", "newHashed")).thenReturn(true);
+        when(jwtTokenProvider.generateAccessToken(user.getId())).thenReturn("access");
+        when(jwtTokenProvider.generateRefreshToken(user.getId())).thenReturn("refresh");
+
+        UserTokenDTO token = service.signIn(new SignInDTO("alice", "newPass123", AuthType.JWT));
+        assertEquals("access", token.accessToken());
+    }
+
+    @Test
     void signIn_throws_whenUserMissing() {
         when(userRepository.findOneByLogin("missing")).thenReturn(Optional.empty());
+        when(userRepository.findOneByEmail("missing")).thenReturn(Optional.empty());
 
         assertThrows(WrongCredentialsException.class, () -> service.signIn(new SignInDTO("missing", "pass", AuthType.JWT)));
     }
@@ -204,5 +288,22 @@ class JwtAuthServiceTest {
         Optional<User> result = service.getCurrentUser();
 
         assertTrue(result.isEmpty());
+    }
+
+    private JwtAuthService buildService(boolean requireOtp,
+                                        int maxAttempts) {
+        return new JwtAuthService(
+                userRepository,
+                jwtTokenProvider,
+                refreshTokenService,
+                passwordHasher,
+                logger,
+                authCodeDeliveryService,
+                authCodeGeneratorService,
+                requireOtp,
+                maxAttempts,
+                300,
+                600
+        );
     }
 }

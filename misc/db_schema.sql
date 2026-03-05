@@ -3,7 +3,8 @@ CREATE TABLE "user" (
                         id UUID PRIMARY KEY,
                         login TEXT NOT NULL,
                         email TEXT NOT NULL,
-                        password_hash TEXT NOT NULL
+                        password_hash TEXT NOT NULL,
+                        active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 CREATE UNIQUE INDEX uq_user_login ON "user" (login);

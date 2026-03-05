@@ -11,6 +11,8 @@ import java.util.UUID;
 public interface AuthService {
     UserTokenDTO signUp(SignUpDTO dto) throws UserExistsException;
     UserTokenDTO signIn(SignInDTO dto) throws WrongCredentialsException, AuthException;
+    void requestAccountRecovery(RecoveryRequestDTO dto);
+    void confirmAccountRecovery(RecoveryConfirmDTO dto) throws AuthException;
     UserTokenDTO refresh(String refreshToken) throws AuthException;
     void signOut(@Nullable String refreshToken);
 
