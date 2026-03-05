@@ -338,6 +338,21 @@ def reset_trace_export_file(path: Path) -> None:
         )
 
 
+def prepare_auth_token(env: dict[str, str], backend_base_url: str, auth_state_file: Path) -> None:
+    run_with_retry(
+        [
+            "python3",
+            "ci/perf/get_token.py",
+            "--base-url",
+            backend_base_url,
+            "--out-file",
+            str(auth_state_file),
+        ],
+        env=env,
+        timeout_sec=120,
+    )
+
+
 def bytes_to_mib(value: float) -> float:
     return value / (1024.0 * 1024.0)
 
@@ -520,18 +535,7 @@ def main() -> int:
             )
 
         print("[benchmark] preparing auth token", flush=True)
-        run_with_retry(
-            [
-                "python3",
-                "ci/perf/get_token.py",
-                "--base-url",
-                args.backend_base_url,
-                "--out-file",
-                str(auth_state_file),
-            ],
-            env=base_env,
-            timeout_sec=120,
-        )
+        prepare_auth_token(base_env, args.backend_base_url, auth_state_file)
 
         duration_sec = duration_to_seconds(args.duration)
         warmup_duration_sec = duration_to_seconds(args.warmup_duration)
@@ -558,6 +562,8 @@ def main() -> int:
             )
 
             wait_backend_ready(args.backend_base_url, timeout_sec=180)
+            print(f"[benchmark] scenario={scenario.name}: refresh auth token", flush=True)
+            prepare_auth_token(scenario_env, args.backend_base_url, auth_state_file)
 
             if warmup_duration_sec > 0:
                 print(
@@ -736,9 +742,22 @@ def main() -> int:
 
             print(
                 f"[benchmark] scenario={scenario.name}: cpu={row['cpu_seconds']:.3f}s "
-                f"avg_ram={row['avg_memory_mib']:.2f}MiB spans={row['exported_spans']}",
+                f"avg_ram={row['avg_memory_mib']:.2f}MiB "
+                f"errors={row['error_rate_percent']:.2f}% "
+                f"4xx={row['status_4xx']:.0f} 5xx={row['status_5xx']:.0f} "
+                f"spans={row['exported_spans']}",
                 flush=True,
             )
+            if row["error_rate_percent"] >= 95.0 and row["status_4xx"] > 0:
+                print(
+                    "[benchmark] warning: mostly 4xx responses; likely auth/token issue or request validation mismatch.",
+                    flush=True,
+                )
+            if row["error_rate_percent"] >= 95.0 and row["status_5xx"] > 0:
+                print(
+                    "[benchmark] warning: mostly 5xx responses; likely backend/engine instability under current load.",
+                    flush=True,
+                )
 
         metadata: dict[str, Any] = {
             "generated_at_utc": datetime.now(tz=timezone.utc).isoformat(),
