@@ -1,10 +1,13 @@
 package ru.chessinsight.infrastructure.engine;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
-import org.springframework.stereotype.Service;
 import ru.chessinsight.application.game.analysis.engine.ChessEngine;
-import ru.chessinsight.application.game.analysis.engine.dto.*;
+import ru.chessinsight.application.game.analysis.engine.dto.CandidateLine;
+import ru.chessinsight.application.game.analysis.engine.dto.EngineAnalysisRequest;
+import ru.chessinsight.application.game.analysis.engine.dto.EngineInfo;
+import ru.chessinsight.application.game.analysis.engine.dto.EngineMoveAnalysis;
+import ru.chessinsight.application.game.analysis.engine.dto.EngineMoveRequest;
+import ru.chessinsight.application.game.analysis.engine.dto.EnginePositionAnalysis;
 import ru.chessinsight.application.game.analysis.engine.exception.EngineException;
 import ru.chessinsight.domain.chess.move.model.Move;
 import ru.chessinsight.domain.chess.move.notation.service.SanNotationService;
@@ -14,7 +17,13 @@ import ru.chessinsight.domain.chess.position.model.Position;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -88,6 +97,31 @@ public class Stockfish extends ExecutableWrapper implements ChessEngine {
         final int multipv = request.effectiveMultiPv();
         final int pvLimit = request.effectivePvLimit(80);
 
+        startPositionAnalysis(request, fen, depth, multipv);
+        ParsedAnalysis parsed = readAnalysisOutput(pvLimit);
+        List<String> bestPvUci = resolveBestPv(parsed);
+        Position start = Position.fromFEN(fen);
+        List<String> bestPvSan = toSanPv(start, bestPvUci);
+        String bestMoveSan = parsed.bestFirstUci() != null
+                ? toSanPv(start, Collections.singletonList(parsed.bestFirstUci())).getFirst()
+                : null;
+        List<CandidateLine> candidates = toCandidateLines(fen, parsed.aggByIdx());
+
+        return new EnginePositionAnalysis(
+                fen,
+                parsed.finalDepth(),
+                parsed.finalSelDepth(),
+                parsed.bestFirstUci(),
+                bestMoveSan,
+                bestPvUci,
+                bestPvSan,
+                parsed.bestCp(),
+                parsed.bestMate(),
+                candidates
+        );
+    }
+
+    private void startPositionAnalysis(EngineAnalysisRequest request, String fen, int depth, int multipv) throws EngineException {
         isReady();
         sendCommand("ucinewgame");
         if (multipv > 1) {
@@ -96,10 +130,12 @@ public class Stockfish extends ExecutableWrapper implements ChessEngine {
         sendCommand("position fen " + fen);
         if (request.movetimeMs() != null) {
             sendCommand("go movetime " + request.movetimeMs());
-        } else {
-            sendCommand("go depth " + depth);
+            return;
         }
+        sendCommand("go depth " + depth);
+    }
 
+    private ParsedAnalysis readAnalysisOutput(int pvLimit) throws EngineException {
         Map<Integer, LineAgg> aggByIdx = new HashMap<>();
         String bestFirstUci = null;
         Integer finalDepth = null;
@@ -112,81 +148,99 @@ public class Stockfish extends ExecutableWrapper implements ChessEngine {
             String line;
             while ((line = reader.readLine()) != null) {
                 if (line.startsWith("bestmove")) {
-                    Matcher mb = BESTMOVE.matcher(line);
-                    if (mb.find()) bestFirstUci = mb.group(1);
+                    bestFirstUci = extractBestMove(line);
                     break;
                 }
-                if (!INFO_GENERIC.matcher(line).find()) continue;
-
-                Integer d = findInt(INFO_DEPTH, line);
-                if (d != null) finalDepth = d;
-                Integer sd = findInt(INFO_SELDEPTH, line);
-                if (sd != null) finalSelDepth = sd;
-
-                Integer idx = findInt(INFO_MULTIPV, line);
-                if (idx == null) idx = 1;
-
-                Integer cp = findInt(INFO_SCORE_CP, line);
-                Integer mate = findInt(INFO_SCORE_MATE, line);
-                String pvText = findText(INFO_PV, line);
-
-                if (pvText != null) {
-                    List<String> pvUci = Arrays.asList(pvText.trim().split("\\s+"));
-                    if (pvUci.size() > pvLimit) pvUci = pvUci.subList(0, pvLimit);
-                    Integer finalDepth1 = finalDepth;
-                    Integer finalSelDepth1 = finalSelDepth;
-                    List<String> finalPvUci = pvUci;
-                    aggByIdx.compute(idx, (k, v) -> {
-                        if (v == null) v = new LineAgg();
-                        v.pvUci = finalPvUci;
-                        v.cp = cp;
-                        v.mate = mate;
-                        v.depth = finalDepth1;
-                        v.selDepth = finalSelDepth1;
-                        return v;
-                    });
-                    if (idx == 1) {
-                        lastBestPvUci = pvUci;
-                        bestCp = cp;
-                        bestMate = mate;
-                    }
+                if (!INFO_GENERIC.matcher(line).find()) {
+                    continue;
+                }
+                finalDepth = pickDepth(line, finalDepth);
+                finalSelDepth = pickSelDepth(line, finalSelDepth);
+                ParsedInfo parsedInfo = parseInfoLine(line, finalDepth, finalSelDepth, pvLimit);
+                if (parsedInfo == null) {
+                    continue;
+                }
+                mergeInfo(aggByIdx, parsedInfo);
+                if (parsedInfo.idx() == 1) {
+                    lastBestPvUci = parsedInfo.pvUci();
+                    bestCp = parsedInfo.cp();
+                    bestMate = parsedInfo.mate();
                 }
             }
         } catch (IOException e) {
             throw new EngineException("Error reading engine output: " + e.getMessage());
         }
 
-        if (lastBestPvUci == null) {
-            if (bestFirstUci != null) {
-                lastBestPvUci = Collections.singletonList(bestFirstUci);
-            } else {
-                throw new EngineException("Engine did not provide a PV or bestmove");
-            }
+        return new ParsedAnalysis(aggByIdx, bestFirstUci, finalDepth, finalSelDepth, bestCp, bestMate, lastBestPvUci);
+    }
+
+    private static String extractBestMove(String line) {
+        Matcher matcher = BESTMOVE.matcher(line);
+        return matcher.find() ? matcher.group(1) : null;
+    }
+
+    private static Integer pickDepth(String line, Integer currentDepth) {
+        Integer value = findInt(INFO_DEPTH, line);
+        return value != null ? value : currentDepth;
+    }
+
+    private static Integer pickSelDepth(String line, Integer currentSelDepth) {
+        Integer value = findInt(INFO_SELDEPTH, line);
+        return value != null ? value : currentSelDepth;
+    }
+
+    private static ParsedInfo parseInfoLine(String line, Integer finalDepth, Integer finalSelDepth, int pvLimit) {
+        String pvText = findText(INFO_PV, line);
+        if (pvText == null) {
+            return null;
         }
+        int idx = Optional.ofNullable(findInt(INFO_MULTIPV, line)).orElse(1);
+        Integer cp = findInt(INFO_SCORE_CP, line);
+        Integer mate = findInt(INFO_SCORE_MATE, line);
+        List<String> pvUci = limitedPv(pvText, pvLimit);
+        return new ParsedInfo(idx, pvUci, cp, mate, finalDepth, finalSelDepth);
+    }
 
+    private static List<String> limitedPv(String pvText, int pvLimit) {
+        List<String> pvUci = Arrays.asList(pvText.trim().split("\\s+"));
+        if (pvUci.size() <= pvLimit) {
+            return pvUci;
+        }
+        return pvUci.subList(0, pvLimit);
+    }
 
-        Position start = Position.fromFEN(fen);
-        List<String> bestPvSan = toSanPv(start, lastBestPvUci);
-        String bestMoveSan = bestFirstUci != null ? toSanPv(start, Collections.singletonList(bestFirstUci)).getFirst() : null;
+    private static void mergeInfo(Map<Integer, LineAgg> aggByIdx, ParsedInfo info) {
+        aggByIdx.compute(info.idx(), (key, value) -> {
+            LineAgg agg = value == null ? new LineAgg() : value;
+            agg.pvUci = info.pvUci();
+            agg.cp = info.cp();
+            agg.mate = info.mate();
+            agg.depth = info.depth();
+            agg.selDepth = info.selDepth();
+            return agg;
+        });
+    }
 
-        List<CandidateLine> candidates = aggByIdx.entrySet().stream()
+    private static List<String> resolveBestPv(ParsedAnalysis parsed) throws EngineException {
+        if (parsed.lastBestPvUci() != null) {
+            return parsed.lastBestPvUci();
+        }
+        if (parsed.bestFirstUci() != null) {
+            return Collections.singletonList(parsed.bestFirstUci());
+        }
+        throw new EngineException("Engine did not provide a PV or bestmove");
+    }
+
+    private List<CandidateLine> toCandidateLines(String fen, Map<Integer, LineAgg> aggByIdx) {
+        return aggByIdx.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
-                .map(e -> {
-                    int idx = e.getKey();
-                    LineAgg a = e.getValue();
-                    List<String> sanLine = toSanPv(Position.fromFEN(fen), a.pvUci);
-                    return new CandidateLine(idx, a.pvUci, sanLine, a.cp, a.mate);
-                })
+                .map(entry -> toCandidateLine(fen, entry.getKey(), entry.getValue()))
                 .collect(Collectors.toList());
+    }
 
-        return new EnginePositionAnalysis(
-                fen,
-                finalDepth, finalSelDepth,
-                bestFirstUci, bestMoveSan,
-                lastBestPvUci, bestPvSan,
-                bestCp, bestMate,
-                candidates
-        );
+    private CandidateLine toCandidateLine(String fen, int idx, LineAgg agg) {
+        List<String> sanLine = toSanPv(Position.fromFEN(fen), agg.pvUci);
+        return new CandidateLine(idx, agg.pvUci, sanLine, agg.cp, agg.mate);
     }
 
     @Override
@@ -252,6 +306,18 @@ public class Stockfish extends ExecutableWrapper implements ChessEngine {
         Integer cp;
         Integer mate;
     }
+
+    private record ParsedInfo(int idx, List<String> pvUci, Integer cp, Integer mate, Integer depth, Integer selDepth) {}
+
+    private record ParsedAnalysis(
+            Map<Integer, LineAgg> aggByIdx,
+            String bestFirstUci,
+            Integer finalDepth,
+            Integer finalSelDepth,
+            Integer bestCp,
+            Integer bestMate,
+            List<String> lastBestPvUci
+    ) {}
 
     @Override
     public String getOutput() throws IOException {

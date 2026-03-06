@@ -45,8 +45,10 @@ build/
 **/.allure/**
 **/.idea/**
 reports/perf/
+reports/static-analysis/
 
 .env
 .env*.local
 
 **/__pycache__/
+.m2/
