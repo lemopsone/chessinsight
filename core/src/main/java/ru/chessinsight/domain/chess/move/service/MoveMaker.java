@@ -2,7 +2,11 @@ package ru.chessinsight.domain.chess.move.service;
 
 import ru.chessinsight.domain.chess.move.model.Move;
 import ru.chessinsight.domain.chess.move.model.MoveKind;
-import ru.chessinsight.domain.chess.piece.model.*;
+import ru.chessinsight.domain.chess.piece.model.Color;
+import ru.chessinsight.domain.chess.piece.model.King;
+import ru.chessinsight.domain.chess.piece.model.Pawn;
+import ru.chessinsight.domain.chess.piece.model.Piece;
+import ru.chessinsight.domain.chess.piece.model.Rook;
 import ru.chessinsight.domain.chess.position.model.BoardCoordinates;
 import ru.chessinsight.domain.chess.position.model.CastlingRights;
 import ru.chessinsight.domain.chess.position.model.Chessboard;
@@ -14,39 +18,64 @@ public class MoveMaker {
         Chessboard b = p.board();
         CastlingRights cr = p.castlingRights();
 
-        if (m.kind() == MoveKind.CASTLE_KING_SIDE || m.kind() == MoveKind.CASTLE_QUEEN_SIDE) {
+        if (isCastlingMove(m)) {
             return applyCastling(p, m);
         }
 
         Piece moving = b.at(m.from());
         Chessboard newBoard = b.without(m.from());
+        newBoard = removeEnPassantCapture(newBoard, m, us);
 
-        if (m.kind() == MoveKind.EN_PASSANT) {
-            BoardCoordinates capturedPos =
-                    new BoardCoordinates(m.to().rank() + (us == Color.WHITE ? -1 : 1), m.to().file());
-            newBoard = newBoard.without(capturedPos);
-        }
-
-        Piece pieceToPlace = (m.kind() == MoveKind.PROMOTION)
-                ? m.promotionTo().create(us)
-                : moving;
+        Piece pieceToPlace = resolvePieceToPlace(m, us, moving);
 
         newBoard = newBoard.withPiece(m.to(), pieceToPlace);
 
-        int halfmoves = (pieceToPlace instanceof Pawn || m.isCapture())
-                ? 0
-                : p.fiftyMoveRuleCounter() + 1;
+        int halfmoves = nextHalfMoveCounter(p, pieceToPlace, m);
 
         CastlingRights newRights = updateRightsAfterMove(cr, us, pieceToPlace, m.from(), m.to());
 
-        BoardCoordinates enPassantSquare = (m.kind() == MoveKind.DOUBLE_PAWN_PUSH)
-                ? new BoardCoordinates((m.from().rank() + m.to().rank()) / 2, m.to().file())
-                : null;
-        newBoard.setEnPassantSquare(enPassantSquare);
+        newBoard.setEnPassantSquare(resolveEnPassantSquare(m));
 
         int moveNum = p.turnNumber() + (us == Color.BLACK ? 1 : 0);
 
         return new Position(newBoard, us.opponent(), newRights, moveNum, halfmoves);
+    }
+
+    private static boolean isCastlingMove(Move move) {
+        return move.kind() == MoveKind.CASTLE_KING_SIDE || move.kind() == MoveKind.CASTLE_QUEEN_SIDE;
+    }
+
+    private static Chessboard removeEnPassantCapture(Chessboard board, Move move, Color sideToMove) {
+        if (move.kind() != MoveKind.EN_PASSANT) {
+            return board;
+        }
+        int capturedPawnRankOffset = sideToMove == Color.WHITE ? -1 : 1;
+        BoardCoordinates capturedPos = new BoardCoordinates(
+                move.to().rank() + capturedPawnRankOffset,
+                move.to().file()
+        );
+        return board.without(capturedPos);
+    }
+
+    private static Piece resolvePieceToPlace(Move move, Color sideToMove, Piece movingPiece) {
+        if (move.kind() == MoveKind.PROMOTION) {
+            return move.promotionTo().create(sideToMove);
+        }
+        return movingPiece;
+    }
+
+    private static int nextHalfMoveCounter(Position position, Piece movedPiece, Move move) {
+        if (movedPiece instanceof Pawn || move.isCapture()) {
+            return 0;
+        }
+        return position.fiftyMoveRuleCounter() + 1;
+    }
+
+    private static BoardCoordinates resolveEnPassantSquare(Move move) {
+        if (move.kind() != MoveKind.DOUBLE_PAWN_PUSH) {
+            return null;
+        }
+        return new BoardCoordinates((move.from().rank() + move.to().rank()) / 2, move.to().file());
     }
 
     private static Position applyCastling(Position p, Move m) {
@@ -82,32 +111,82 @@ public class MoveMaker {
     private static CastlingRights updateRightsAfterMove(CastlingRights old,
                                                         Color c, Piece piece,
                                                         BoardCoordinates from, BoardCoordinates to) {
-        boolean WK = old.whiteKingSide(), WQ = old.whiteQueenSide(), BK = old.blackKingSide(), BQ = old.blackQueenSide();
+        RightsState rights = RightsState.from(old);
+        revokeForMovingPiece(rights, c, piece, from);
+        revokeForCapturedCornerRook(rights, to);
+        return rights.toCastlingRights();
+    }
+
+    private static void revokeForMovingPiece(RightsState rights, Color color, Piece piece, BoardCoordinates from) {
         if (piece instanceof King) {
-            if (c == Color.WHITE) {
-                WK = false; WQ = false;
-            } else {
-                BK = false; BQ = false;
-            }
-        } else if (piece instanceof Rook) {
-            var startingRank = c == Color.WHITE ? 0 : 7;
-            if (from.rank() == startingRank) {
-                if (from.file() == 0) {
-                    if (c == Color.WHITE) WQ = false; else BQ = false;
-                } else if (from.file() == 7) {
-                    if (c == Color.WHITE) WK = false; else BK = false;
-                }
+            rights.revokeBoth(color);
+            return;
+        }
+        if (piece instanceof Rook && isStartingRookSquare(color, from)) {
+            rights.revokeRookSide(color, from.file());
+        }
+    }
+
+    private static boolean isStartingRookSquare(Color color, BoardCoordinates from) {
+        int startingRank = color == Color.WHITE ? 0 : 7;
+        return from.rank() == startingRank && (from.file() == 0 || from.file() == 7);
+    }
+
+    private static void revokeForCapturedCornerRook(RightsState rights, BoardCoordinates to) {
+        int square = (to.rank() * 8) + to.file();
+        switch (square) {
+            case 0 -> rights.whiteQueenSide = false;
+            case 7 -> rights.whiteKingSide = false;
+            case 56 -> rights.blackQueenSide = false;
+            case 63 -> rights.blackKingSide = false;
+            default -> {
             }
         }
-        if (to.rank() == 0 && to.file() == 0)
-            WQ = false;
-        else if (to.rank() == 0 && to.file() == 7)
-            WK = false;
-        else if (to.rank() == 7 && to.file() == 0)
-            BQ = false;
-        else if (to.rank() == 7 && to.file() == 7)
-            BK = false;
+    }
 
-        return new CastlingRights(WQ, WK, BQ, BK);
+    private static final class RightsState {
+        private boolean whiteKingSide;
+        private boolean whiteQueenSide;
+        private boolean blackKingSide;
+        private boolean blackQueenSide;
+
+        private static RightsState from(CastlingRights rights) {
+            RightsState state = new RightsState();
+            state.whiteKingSide = rights.whiteKingSide();
+            state.whiteQueenSide = rights.whiteQueenSide();
+            state.blackKingSide = rights.blackKingSide();
+            state.blackQueenSide = rights.blackQueenSide();
+            return state;
+        }
+
+        private void revokeBoth(Color color) {
+            if (color == Color.WHITE) {
+                whiteKingSide = false;
+                whiteQueenSide = false;
+                return;
+            }
+            blackKingSide = false;
+            blackQueenSide = false;
+        }
+
+        private void revokeRookSide(Color color, int file) {
+            if (color == Color.WHITE) {
+                if (file == 0) {
+                    whiteQueenSide = false;
+                } else {
+                    whiteKingSide = false;
+                }
+                return;
+            }
+            if (file == 0) {
+                blackQueenSide = false;
+            } else {
+                blackKingSide = false;
+            }
+        }
+
+        private CastlingRights toCastlingRights() {
+            return new CastlingRights(whiteQueenSide, whiteKingSide, blackQueenSide, blackKingSide);
+        }
     }
 }

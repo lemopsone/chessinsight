@@ -14,7 +14,8 @@ import ru.chessinsight.domain.game.notation.service.pgn.utils.PgnParser;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class PgnService {
     private final SanNotationService sanNotationService;

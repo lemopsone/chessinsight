@@ -25,7 +25,11 @@ import ru.chessinsight.domain.game.model.GameMoveAnalysis;
 import ru.chessinsight.domain.game.repository.GameRepository;
 
 import java.time.OffsetDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @Service
 public class DefaultAnalysisService implements AnalysisService {
@@ -60,43 +64,16 @@ public class DefaultAnalysisService implements AnalysisService {
             logger.info("analysis.cached gameId=" + game.getId());
             return existingGameAnalysis(game);
         }
-        logger.info("analysis.start gameId=" + game.getId()
-                + " userId=" + game.getUserId()
-                + " moves=" + game.getMoves().size());
-        var analysis = new GameAnalysis();
+        logAnalysisStart(game);
+
         List<MoveEval> analyzed = getGameMovesEval(game);
+        Map<MoveCategory, List<MoveAnalysisDTO>> buckets = initializeBuckets();
+        AccuracyTotals totals = collectAccuracyTotals(analyzed, buckets);
 
-        Map<MoveCategory, List<MoveAnalysisDTO>> buckets = new EnumMap<>(MoveCategory.class);
-        for (MoveCategory c : MoveCategory.values()) {
-            buckets.put(c, new ArrayList<>());
-        }
+        double accWhite = calculateSideAccuracy(totals.whitePenalty, totals.whiteWeight);
+        double accBlack = calculateSideAccuracy(totals.blackPenalty, totals.blackWeight);
 
-        double whitePenalty = 0.0, whiteWeight = 0.0;
-        double blackPenalty = 0.0, blackWeight = 0.0;
-
-        for (MoveEval entry : analyzed) {
-            MoveAnalysisDTO ma = entry.analysis();
-            MoveCategory cat = classifier.classifyMove(ma);
-            buckets.get(cat).add(ma);
-
-            Color side = (entry.move().getPlyIndex() % 2 == 1) ? Color.WHITE : Color.BLACK;
-
-            long moveNum = (long) Math.ceil(entry.move().getPlyIndex() / 2.0);
-            double w = accuracy.moveWeight(moveNum);
-            double p = accuracy.movePenalty(cat, moveNum);
-
-            if (side == Color.WHITE) {
-                whitePenalty += p;
-                whiteWeight  += w;
-            } else {
-                blackPenalty += p;
-                blackWeight  += w;
-            }
-        }
-
-        double accWhite = (whiteWeight > 0) ? accuracy.calculateAccuracy(whitePenalty, whiteWeight) : 100.0;
-        double accBlack = (blackWeight > 0) ? accuracy.calculateAccuracy(blackPenalty, blackWeight) : 100.0;
-
+        var analysis = new GameAnalysis();
         analysis.setAccuracyWhite(accWhite);
         analysis.setAccuracyBlack(accBlack);
         analysis.setBlunders(buckets.get(MoveCategory.BLUNDER).size());
@@ -121,6 +98,56 @@ public class DefaultAnalysisService implements AnalysisService {
                 buckets.get(MoveCategory.MISTAKE),
                 buckets.get(MoveCategory.BLUNDER)
         );
+    }
+
+    private void logAnalysisStart(Game game) {
+        logger.info("analysis.start gameId=" + game.getId()
+                + " userId=" + game.getUserId()
+                + " moves=" + game.getMoves().size());
+    }
+
+    private Map<MoveCategory, List<MoveAnalysisDTO>> initializeBuckets() {
+        Map<MoveCategory, List<MoveAnalysisDTO>> buckets = new EnumMap<>(MoveCategory.class);
+        for (MoveCategory category : MoveCategory.values()) {
+            buckets.put(category, new ArrayList<>());
+        }
+        return buckets;
+    }
+
+    private AccuracyTotals collectAccuracyTotals(
+            List<MoveEval> analyzedMoves,
+            Map<MoveCategory, List<MoveAnalysisDTO>> buckets
+    ) {
+        AccuracyTotals totals = new AccuracyTotals();
+
+        for (MoveEval entry : analyzedMoves) {
+            MoveAnalysisDTO analysisDto = entry.analysis();
+            MoveCategory category = classifier.classifyMove(analysisDto);
+            buckets.get(category).add(analysisDto);
+
+            Color side = sideForPly(entry.move().getPlyIndex());
+            long moveNumber = moveNumberForPly(entry.move().getPlyIndex());
+            double weight = accuracy.moveWeight(moveNumber);
+            double penalty = accuracy.movePenalty(category, moveNumber);
+            totals.add(side, penalty, weight);
+        }
+
+        return totals;
+    }
+
+    private static Color sideForPly(int plyIndex) {
+        return (plyIndex % 2 == 1) ? Color.WHITE : Color.BLACK;
+    }
+
+    private static long moveNumberForPly(int plyIndex) {
+        return (plyIndex + 1L) / 2L;
+    }
+
+    private double calculateSideAccuracy(double penalty, double weight) {
+        if (weight > 0) {
+            return accuracy.calculateAccuracy(penalty, weight);
+        }
+        return 100.0;
     }
 
     private List<MoveEval> getGameMovesEval(Game game) {
@@ -157,90 +184,36 @@ public class DefaultAnalysisService implements AnalysisService {
 
     private record MoveEval(GameMove move, MoveAnalysisDTO analysis) {}
 
+    private static final class AccuracyTotals {
+        private double whitePenalty;
+        private double whiteWeight;
+        private double blackPenalty;
+        private double blackWeight;
+
+        private void add(Color side, double penalty, double weight) {
+            if (side == Color.WHITE) {
+                whitePenalty += penalty;
+                whiteWeight += weight;
+                return;
+            }
+            blackPenalty += penalty;
+            blackWeight += weight;
+        }
+    }
+
     @Override
     public MoveAnalysisDTO analyzeMove(MoveDTO move) {
         long startedAtNanos = System.nanoTime();
-        String uciText = move.moveUCI();
         Position pos = Position.fromFEN(move.positionFEN());
-        if (uciText == null || uciText.isBlank()) {
-            Move mv = san.sanToMove(move.moveSAN(), pos);
-            uciText = uci.moveToUci(mv);
-        }
-
-        if (log.isDebugEnabled()) {
-            log.debug(
-                    "move.analysis.start moveNum={} san={} uci={} fenLength={}",
-                    move.moveNum(),
-                    move.moveSAN(),
-                    uciText,
-                    move.positionFEN() == null ? 0 : move.positionFEN().length()
-            );
-        }
+        String uciText = resolveUci(move, pos);
+        logMoveAnalysisStart(move, uciText);
 
         try {
-            var req = new EngineMoveRequest(
-                    move.positionFEN(),
-                    uciText,
-                    8,
-                    120, null,
-                   1
-            );
-
-            var res = engine.analyzeMove(req);
-
-            Integer mateScore = res.mateScore();
-            if (mateScore == null) {
-                Move played = uci.uciToMove(uciText, pos);
-                Position after = MoveMaker.apply(pos, played);
-                var validator = new ru.chessinsight.domain.chess.move.service.MoveValidator();
-                boolean inCheck = validator.isKingInCheck(after, after.sideToMove());
-                boolean noMoves = validator.sideLegalMoves(after, after.sideToMove()).isEmpty();
-                if (inCheck && noMoves) {
-                    mateScore = 0;
-                }
-            }
-
-            Double playedEval = (res.evalCp() != null) ? (res.evalCp() / 100.0) : (mateScore != null ? Double.POSITIVE_INFINITY : 0.0);
-
-            Double bestEval = (res.evalCp() != null && res.cpLoss() != null)
-                    ? ((res.evalCp() + res.cpLoss()) / 100.0)
-                    : playedEval;
-
-            var bestMoveDTO = new MoveDTO(
-                    move.moveNum(),
-                    res.positionFEN(),
-                    res.bestMoveSan(),
-                    res.bestMoveUci()
-            );
-
-            MoveAnalysisDTO result = new MoveAnalysisDTO(
-                    res.positionFEN(),
-                    bestMoveDTO,
-                    bestEval,
-                    playedEval,
-                    mateScore
-            );
-
-            long durationMs = (System.nanoTime() - startedAtNanos) / 1_000_000L;
-            logger.info(
-                    "move.analysis.complete moveNum=" + move.moveNum()
-                            + " uci=" + uciText
-                            + " durationMs=" + durationMs
-                            + " eval=" + playedEval
-                            + " mate=" + mateScore
-            );
-            if (log.isDebugEnabled()) {
-                log.debug(
-                        "move.analysis.result moveNum={} bestUci={} bestSan={} bestEval={} playerEval={} cpLoss={}",
-                        move.moveNum(),
-                        res.bestMoveUci(),
-                        res.bestMoveSan(),
-                        bestEval,
-                        playedEval,
-                        res.cpLoss()
-                );
-            }
-
+            var request = buildEngineRequest(move, uciText);
+            var response = engine.analyzeMove(request);
+            Integer mateScore = resolveMateScore(response, pos, uciText);
+            MoveAnalysisDTO result = toMoveAnalysisDto(move, response, mateScore);
+            logMoveAnalysisComplete(move, uciText, response, mateScore, startedAtNanos, result);
             return result;
         } catch (RuntimeException ex) {
             long durationMs = (System.nanoTime() - startedAtNanos) / 1_000_000L;
@@ -252,6 +225,111 @@ public class DefaultAnalysisService implements AnalysisService {
                             + ": " + ex.getMessage()
             );
             throw ex;
+        }
+    }
+
+    private String resolveUci(MoveDTO move, Position position) {
+        String uciText = move.moveUCI();
+        if (uciText != null && !uciText.isBlank()) {
+            return uciText;
+        }
+        Move moveFromSan = san.sanToMove(move.moveSAN(), position);
+        return uci.moveToUci(moveFromSan);
+    }
+
+    private void logMoveAnalysisStart(MoveDTO move, String uciText) {
+        if (!log.isDebugEnabled()) {
+            return;
+        }
+        log.debug(
+                "move.analysis.start moveNum={} san={} uci={} fenLength={}",
+                move.moveNum(),
+                move.moveSAN(),
+                uciText,
+                move.positionFEN() == null ? 0 : move.positionFEN().length()
+        );
+    }
+
+    private static EngineMoveRequest buildEngineRequest(MoveDTO move, String uciText) {
+        return new EngineMoveRequest(
+                move.positionFEN(),
+                uciText,
+                8,
+                120,
+                null,
+                1
+        );
+    }
+
+    private Integer resolveMateScore(
+            ru.chessinsight.application.game.analysis.engine.dto.EngineMoveAnalysis response,
+            Position position,
+            String uciText
+    ) {
+        Integer mateScore = response.mateScore();
+        if (mateScore != null) {
+            return mateScore;
+        }
+        Move played = uci.uciToMove(uciText, position);
+        Position after = MoveMaker.apply(position, played);
+        var validator = new ru.chessinsight.domain.chess.move.service.MoveValidator();
+        boolean inCheck = validator.isKingInCheck(after, after.sideToMove());
+        boolean noMoves = validator.sideLegalMoves(after, after.sideToMove()).isEmpty();
+        return inCheck && noMoves ? 0 : null;
+    }
+
+    private static MoveAnalysisDTO toMoveAnalysisDto(
+            MoveDTO move,
+            ru.chessinsight.application.game.analysis.engine.dto.EngineMoveAnalysis response,
+            Integer mateScore
+    ) {
+        Double playedEval = (response.evalCp() != null)
+                ? (response.evalCp() / 100.0)
+                : (mateScore != null ? Double.POSITIVE_INFINITY : 0.0);
+        Double bestEval = (response.evalCp() != null && response.cpLoss() != null)
+                ? ((response.evalCp() + response.cpLoss()) / 100.0)
+                : playedEval;
+        var bestMoveDTO = new MoveDTO(
+                move.moveNum(),
+                response.positionFEN(),
+                response.bestMoveSan(),
+                response.bestMoveUci()
+        );
+        return new MoveAnalysisDTO(
+                response.positionFEN(),
+                bestMoveDTO,
+                bestEval,
+                playedEval,
+                mateScore
+        );
+    }
+
+    private void logMoveAnalysisComplete(
+            MoveDTO move,
+            String uciText,
+            ru.chessinsight.application.game.analysis.engine.dto.EngineMoveAnalysis response,
+            Integer mateScore,
+            long startedAtNanos,
+            MoveAnalysisDTO result
+    ) {
+        long durationMs = (System.nanoTime() - startedAtNanos) / 1_000_000L;
+        logger.info(
+                "move.analysis.complete moveNum=" + move.moveNum()
+                        + " uci=" + uciText
+                        + " durationMs=" + durationMs
+                        + " eval=" + result.playerMoveEval()
+                        + " mate=" + mateScore
+        );
+        if (log.isDebugEnabled()) {
+            log.debug(
+                    "move.analysis.result moveNum={} bestUci={} bestSan={} bestEval={} playerEval={} cpLoss={}",
+                    move.moveNum(),
+                    response.bestMoveUci(),
+                    response.bestMoveSan(),
+                    result.bestMoveEval(),
+                    result.playerMoveEval(),
+                    response.cpLoss()
+            );
         }
     }
 

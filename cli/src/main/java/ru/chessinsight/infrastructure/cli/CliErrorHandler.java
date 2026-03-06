@@ -5,7 +5,10 @@ import org.springframework.security.access.AccessDeniedException;
 
 import jakarta.validation.ConstraintViolationException;
 
-import ru.chessinsight.infrastructure.cli.exception.*;
+import ru.chessinsight.infrastructure.cli.exception.CliAuthRequiredException;
+import ru.chessinsight.infrastructure.cli.exception.CliNotFoundException;
+import ru.chessinsight.infrastructure.cli.exception.CliUsageException;
+import ru.chessinsight.infrastructure.cli.exception.CliValidationException;
 
 public final class CliErrorHandler {
     private static final boolean DEBUG = Boolean.parseBoolean(
@@ -15,50 +18,63 @@ public final class CliErrorHandler {
     private CliErrorHandler() {}
 
     public static void handle(Throwable t) {
+        if (handleCliException(t)) {
+            return;
+        }
+        if (handleGeneralException(t)) {
+            return;
+        }
+        println("Unexpected error: " + rootMessage(t));
+        debug(t);
+    }
+
+    private static boolean handleCliException(Throwable t) {
         if (t instanceof CliUsageException e) {
             println("Usage error: " + e.getMessage());
             if (e.getUsage() != null && !e.getUsage().isBlank()) {
                 println("Usage: " + e.getUsage());
             }
-            return;
+            return true;
         }
         if (t instanceof CliAuthRequiredException) {
             println("Auth required: " + t.getMessage());
             println("run `auth signin <login> <password>`.");
-            return;
+            return true;
         }
         if (t instanceof CliValidationException) {
             println("Validation failed: " + t.getMessage());
-            return;
+            return true;
         }
         if (t instanceof CliNotFoundException) {
             println("Not found: " + t.getMessage());
-            return;
+            return true;
         }
+        return false;
+    }
+
+    private static boolean handleGeneralException(Throwable t) {
         if (t instanceof ConstraintViolationException) {
             println("Validation error: " + t.getMessage());
-            return;
+            return true;
         }
         if (t instanceof DataAccessException) {
             println("Database error: " + rootMessage(t));
             debug(t);
-            return;
+            return true;
         }
         if (t instanceof AccessDeniedException) {
             println("Access denied: " + t.getMessage());
-            return;
+            return true;
         }
         if (t instanceof IllegalArgumentException) {
             println("Bad input: " + t.getMessage());
-            return;
+            return true;
         }
         if (t instanceof IllegalStateException) {
             println("Operation failed: " + t.getMessage());
-            return;
+            return true;
         }
-
-        println("Unexpected error: " + rootMessage(t));
-        debug(t);
+        return false;
     }
 
     private static void println(String s) {

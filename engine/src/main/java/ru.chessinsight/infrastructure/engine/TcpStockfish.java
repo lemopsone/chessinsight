@@ -2,7 +2,12 @@ package ru.chessinsight.infrastructure.engine;
 
 import org.springframework.beans.factory.annotation.Value;
 import ru.chessinsight.application.game.analysis.engine.ChessEngine;
-import ru.chessinsight.application.game.analysis.engine.dto.*;
+import ru.chessinsight.application.game.analysis.engine.dto.CandidateLine;
+import ru.chessinsight.application.game.analysis.engine.dto.EngineAnalysisRequest;
+import ru.chessinsight.application.game.analysis.engine.dto.EngineInfo;
+import ru.chessinsight.application.game.analysis.engine.dto.EngineMoveAnalysis;
+import ru.chessinsight.application.game.analysis.engine.dto.EngineMoveRequest;
+import ru.chessinsight.application.game.analysis.engine.dto.EnginePositionAnalysis;
 import ru.chessinsight.application.game.analysis.engine.exception.EngineException;
 import ru.chessinsight.domain.chess.move.model.Move;
 import ru.chessinsight.domain.chess.move.notation.service.SanNotationService;
@@ -10,11 +15,22 @@ import ru.chessinsight.domain.chess.move.notation.service.UciNotationService;
 import ru.chessinsight.domain.chess.move.service.MoveMaker;
 import ru.chessinsight.domain.chess.position.model.Position;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -192,6 +208,99 @@ public class TcpStockfish implements ChessEngine, AutoCloseable {
         final int multipv = request.effectiveMultiPv();
         final int pvLimit = request.effectivePvLimit(80);
 
+        startPositionAnalysis(session, request, fen, depth, multipv);
+        ParsedAnalysis parsed = readAnalysisOutput(session, pvLimit);
+        List<String> bestPvUci = resolveBestPvOrEmpty(parsed);
+        if (bestPvUci.isEmpty()) {
+            return new EnginePositionAnalysis(
+                    fen,
+                    parsed.finalDepth(),
+                    parsed.finalSelDepth(),
+                    null,
+                    null,
+                    Collections.emptyList(),
+                    Collections.emptyList(),
+                    parsed.bestCp(),
+                    parsed.bestMate(),
+                    Collections.emptyList()
+            );
+        }
+        Position start = Position.fromFEN(fen);
+        List<String> bestPvSan = toSanPv(start, bestPvUci);
+        String bestMoveSan = parsed.bestFirstUci() != null
+                ? toSanPv(start, Collections.singletonList(parsed.bestFirstUci())).getFirst()
+                : null;
+        List<CandidateLine> candidates = toCandidateLines(fen, parsed.aggByIdx());
+
+        return new EnginePositionAnalysis(
+                fen,
+                parsed.finalDepth(),
+                parsed.finalSelDepth(),
+                parsed.bestFirstUci(),
+                bestMoveSan,
+                bestPvUci,
+                bestPvSan,
+                parsed.bestCp(),
+                parsed.bestMate(),
+                candidates
+        );
+    }
+
+    private EngineSession borrowSession() throws EngineException {
+        assertOpen();
+        EngineSession fromPool = availableSessions.poll();
+        if (fromPool != null) {
+            return fromPool;
+        }
+        EngineSession created = tryCreateSession();
+        if (created != null) {
+            return created;
+        }
+        return waitForPooledSession();
+    }
+
+    private void assertOpen() throws EngineException {
+        if (closed) {
+            throw new EngineException("Stockfish engine is closed");
+        }
+    }
+
+    private EngineSession tryCreateSession() throws EngineException {
+        int current = createdSessions.get();
+        if (current >= poolSize || !createdSessions.compareAndSet(current, current + 1)) {
+            return null;
+        }
+        try {
+            EngineSession created = createConnectedSession();
+            allSessions.add(created);
+            return created;
+        } catch (EngineException e) {
+            createdSessions.decrementAndGet();
+            throw e;
+        }
+    }
+
+    private EngineSession waitForPooledSession() throws EngineException {
+        assertOpen();
+        try {
+            EngineSession waited = availableSessions.poll(readTimeoutMs, TimeUnit.MILLISECONDS);
+            if (waited != null) {
+                return waited;
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new EngineException("Interrupted while waiting for Stockfish session");
+        }
+        throw new EngineException("Timeout waiting for free Stockfish session (poolSize=" + poolSize + ")");
+    }
+
+    private void startPositionAnalysis(
+            EngineSession session,
+            EngineAnalysisRequest request,
+            String fen,
+            int depth,
+            int multipv
+    ) throws EngineException {
         isReady(session);
         sendCommand(session, "ucinewgame");
         if (multipv > 1) {
@@ -200,10 +309,12 @@ public class TcpStockfish implements ChessEngine, AutoCloseable {
         sendCommand(session, "position fen " + fen);
         if (request.movetimeMs() != null) {
             sendCommand(session, "go movetime " + request.movetimeMs());
-        } else {
-            sendCommand(session, "go depth " + depth);
+            return;
         }
+        sendCommand(session, "go depth " + depth);
+    }
 
+    private ParsedAnalysis readAnalysisOutput(EngineSession session, int pvLimit) throws EngineException {
         Map<Integer, LineAgg> aggByIdx = new HashMap<>();
         String bestFirstUci = null;
         Integer finalDepth = null;
@@ -216,155 +327,103 @@ public class TcpStockfish implements ChessEngine, AutoCloseable {
             String line;
             while ((line = session.reader.readLine()) != null) {
                 if (line.startsWith("bestmove")) {
-                    Matcher mb = BESTMOVE.matcher(line);
-                    if (mb.find()) {
-                        bestFirstUci = mb.group(1);
-                        if ("(none)".equals(bestFirstUci)) {
-                            bestFirstUci = null;
-                        }
-                    }
+                    bestFirstUci = extractBestMove(line);
                     break;
                 }
                 if (!INFO_GENERIC.matcher(line).find()) {
                     continue;
                 }
-
-                Integer d = findInt(INFO_DEPTH, line);
-                if (d != null) {
-                    finalDepth = d;
+                finalDepth = pickDepth(line, finalDepth);
+                finalSelDepth = pickSelDepth(line, finalSelDepth);
+                ParsedInfo parsedInfo = parseInfoLine(line, finalDepth, finalSelDepth, pvLimit);
+                if (parsedInfo == null) {
+                    continue;
                 }
-                Integer sd = findInt(INFO_SELDEPTH, line);
-                if (sd != null) {
-                    finalSelDepth = sd;
-                }
-
-                Integer idx = findInt(INFO_MULTIPV, line);
-                if (idx == null) {
-                    idx = 1;
-                }
-
-                Integer cp = findInt(INFO_SCORE_CP, line);
-                Integer mate = findInt(INFO_SCORE_MATE, line);
-                String pvText = findText(INFO_PV, line);
-
-                if (pvText != null) {
-                    List<String> pvUci = Arrays.asList(pvText.trim().split("\\s+"));
-                    if (pvUci.size() > pvLimit) {
-                        pvUci = pvUci.subList(0, pvLimit);
-                    }
-                    Integer finalDepth1 = finalDepth;
-                    Integer finalSelDepth1 = finalSelDepth;
-                    List<String> finalPvUci = pvUci;
-                    aggByIdx.compute(idx, (k, v) -> {
-                        if (v == null) {
-                            v = new LineAgg();
-                        }
-                        v.pvUci = finalPvUci;
-                        v.cp = cp;
-                        v.mate = mate;
-                        v.depth = finalDepth1;
-                        v.selDepth = finalSelDepth1;
-                        return v;
-                    });
-                    if (idx == 1) {
-                        lastBestPvUci = pvUci;
-                        bestCp = cp;
-                        bestMate = mate;
-                    }
+                mergeInfo(aggByIdx, parsedInfo);
+                if (parsedInfo.idx() == 1) {
+                    lastBestPvUci = parsedInfo.pvUci();
+                    bestCp = parsedInfo.cp();
+                    bestMate = parsedInfo.mate();
                 }
             }
         } catch (IOException e) {
             throw new EngineException("Error reading engine output: " + e.getMessage());
         }
 
-        if (lastBestPvUci == null) {
-            if (bestFirstUci != null) {
-                lastBestPvUci = Collections.singletonList(bestFirstUci);
-            } else {
-                return new EnginePositionAnalysis(
-                        fen,
-                        finalDepth,
-                        finalSelDepth,
-                        null,
-                        null,
-                        Collections.emptyList(),
-                        Collections.emptyList(),
-                        bestCp,
-                        bestMate,
-                        Collections.emptyList()
-                );
-            }
-        }
-
-        Position start = Position.fromFEN(fen);
-        List<String> bestPvSan = toSanPv(start, lastBestPvUci);
-        String bestMoveSan = bestFirstUci != null
-                ? toSanPv(start, Collections.singletonList(bestFirstUci)).getFirst()
-                : null;
-
-        List<CandidateLine> candidates = aggByIdx.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey())
-                .map(e -> {
-                    int idx = e.getKey();
-                    LineAgg a = e.getValue();
-                    List<String> sanLine = toSanPv(Position.fromFEN(fen), a.pvUci);
-                    return new CandidateLine(idx, a.pvUci, sanLine, a.cp, a.mate);
-                })
-                .collect(Collectors.toList());
-
-        return new EnginePositionAnalysis(
-                fen,
-                finalDepth,
-                finalSelDepth,
-                bestFirstUci,
-                bestMoveSan,
-                lastBestPvUci,
-                bestPvSan,
-                bestCp,
-                bestMate,
-                candidates
-        );
+        return new ParsedAnalysis(aggByIdx, bestFirstUci, finalDepth, finalSelDepth, bestCp, bestMate, lastBestPvUci);
     }
 
-    private EngineSession borrowSession() throws EngineException {
-        if (closed) {
-            throw new EngineException("Stockfish engine is closed");
+    private static String extractBestMove(String line) {
+        Matcher matcher = BESTMOVE.matcher(line);
+        if (!matcher.find()) {
+            return null;
         }
+        String bestMove = matcher.group(1);
+        return "(none)".equals(bestMove) ? null : bestMove;
+    }
 
-        EngineSession fromPool = availableSessions.poll();
-        if (fromPool != null) {
-            return fromPool;
+    private static Integer pickDepth(String line, Integer currentDepth) {
+        Integer value = findInt(INFO_DEPTH, line);
+        return value != null ? value : currentDepth;
+    }
+
+    private static Integer pickSelDepth(String line, Integer currentSelDepth) {
+        Integer value = findInt(INFO_SELDEPTH, line);
+        return value != null ? value : currentSelDepth;
+    }
+
+    private static ParsedInfo parseInfoLine(String line, Integer finalDepth, Integer finalSelDepth, int pvLimit) {
+        String pvText = findText(INFO_PV, line);
+        if (pvText == null) {
+            return null;
         }
+        int idx = Optional.ofNullable(findInt(INFO_MULTIPV, line)).orElse(1);
+        Integer cp = findInt(INFO_SCORE_CP, line);
+        Integer mate = findInt(INFO_SCORE_MATE, line);
+        List<String> pvUci = limitedPv(pvText, pvLimit);
+        return new ParsedInfo(idx, pvUci, cp, mate, finalDepth, finalSelDepth);
+    }
 
-        while (true) {
-            if (closed) {
-                throw new EngineException("Stockfish engine is closed");
-            }
-
-            int current = createdSessions.get();
-            if (current < poolSize && createdSessions.compareAndSet(current, current + 1)) {
-                try {
-                    EngineSession created = createConnectedSession();
-                    allSessions.add(created);
-                    return created;
-                } catch (EngineException e) {
-                    createdSessions.decrementAndGet();
-                    throw e;
-                }
-            }
-
-            try {
-                EngineSession waited = availableSessions.poll(readTimeoutMs, TimeUnit.MILLISECONDS);
-                if (waited != null) {
-                    return waited;
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new EngineException("Interrupted while waiting for Stockfish session");
-            }
-
-            throw new EngineException("Timeout waiting for free Stockfish session (poolSize=" + poolSize + ")");
+    private static List<String> limitedPv(String pvText, int pvLimit) {
+        List<String> pvUci = Arrays.asList(pvText.trim().split("\\s+"));
+        if (pvUci.size() <= pvLimit) {
+            return pvUci;
         }
+        return pvUci.subList(0, pvLimit);
+    }
+
+    private static void mergeInfo(Map<Integer, LineAgg> aggByIdx, ParsedInfo info) {
+        aggByIdx.compute(info.idx(), (key, value) -> {
+            LineAgg agg = value == null ? new LineAgg() : value;
+            agg.pvUci = info.pvUci();
+            agg.cp = info.cp();
+            agg.mate = info.mate();
+            agg.depth = info.depth();
+            agg.selDepth = info.selDepth();
+            return agg;
+        });
+    }
+
+    private static List<String> resolveBestPvOrEmpty(ParsedAnalysis parsed) {
+        if (parsed.lastBestPvUci() != null) {
+            return parsed.lastBestPvUci();
+        }
+        if (parsed.bestFirstUci() != null) {
+            return Collections.singletonList(parsed.bestFirstUci());
+        }
+        return Collections.emptyList();
+    }
+
+    private List<CandidateLine> toCandidateLines(String fen, Map<Integer, LineAgg> aggByIdx) {
+        return aggByIdx.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> toCandidateLine(fen, entry.getKey(), entry.getValue()))
+                .collect(Collectors.toList());
+    }
+
+    private CandidateLine toCandidateLine(String fen, int idx, LineAgg agg) {
+        List<String> sanLine = toSanPv(Position.fromFEN(fen), agg.pvUci);
+        return new CandidateLine(idx, agg.pvUci, sanLine, agg.cp, agg.mate);
     }
 
     private void releaseSession(EngineSession session) {
@@ -455,30 +514,35 @@ public class TcpStockfish implements ChessEngine, AutoCloseable {
                 if ("uciok".equals(line)) {
                     break;
                 }
-                Matcher mn = ID_NAME.matcher(line);
-                if (mn.find()) {
-                    sessionName = mn.group(1).trim();
-                }
-                Matcher ma = ID_AUTHOR.matcher(line);
-                if (ma.find()) {
-                    sessionAuthor = ma.group(1).trim();
-                }
+                sessionName = readTaggedValue(ID_NAME, line).orElse(sessionName);
+                sessionAuthor = readTaggedValue(ID_AUTHOR, line).orElse(sessionAuthor);
             }
         } catch (IOException e) {
             throw new EngineException("Engine did not respond to 'uci': " + e.getMessage());
         }
 
-        if (sessionName != null && !sessionName.isBlank()) {
-            engineName = sessionName;
-        }
-        if (sessionAuthor != null && !sessionAuthor.isBlank()) {
-            engineAuthor = sessionAuthor;
-        }
+        engineName = nonBlankOrDefault(sessionName, engineName);
+        engineAuthor = nonBlankOrDefault(sessionAuthor, engineAuthor);
 
         sendCommand(session, "setoption name Threads value " + threads);
         sendCommand(session, "setoption name Hash value " + hashMb);
         sendCommand(session, "setoption name Ponder value " + ponder);
         isReady(session);
+    }
+
+    private static Optional<String> readTaggedValue(Pattern pattern, String line) {
+        Matcher matcher = pattern.matcher(line);
+        if (!matcher.find()) {
+            return Optional.empty();
+        }
+        return Optional.of(matcher.group(1).trim());
+    }
+
+    private static String nonBlankOrDefault(String value, String fallback) {
+        return Optional.ofNullable(value)
+                .map(String::trim)
+                .filter(candidate -> !candidate.isBlank())
+                .orElse(fallback);
     }
 
     private void isReady(EngineSession session) throws EngineException {
@@ -562,6 +626,18 @@ public class TcpStockfish implements ChessEngine, AutoCloseable {
         Integer cp;
         Integer mate;
     }
+
+    private record ParsedInfo(int idx, List<String> pvUci, Integer cp, Integer mate, Integer depth, Integer selDepth) {}
+
+    private record ParsedAnalysis(
+            Map<Integer, LineAgg> aggByIdx,
+            String bestFirstUci,
+            Integer finalDepth,
+            Integer finalSelDepth,
+            Integer bestCp,
+            Integer bestMate,
+            List<String> lastBestPvUci
+    ) {}
 
     private static final class EngineSession {
         final Socket socket;

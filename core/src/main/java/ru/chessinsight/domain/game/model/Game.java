@@ -1,7 +1,11 @@
 package ru.chessinsight.domain.game.model;
 
 import java.time.LocalDate;
-import java.util.*;
+import java.util.Comparator;
+import java.util.Objects;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.UUID;
 
 public class Game {
     private UUID id;
@@ -22,7 +26,20 @@ public class Game {
 
     public Game() { }
 
-    public Game(UUID id, UUID userId, String event, String site, LocalDate date, String round, String whiteName, String blackName, GameResult result, String pgn, GameAnalysis analysis, Set<GameMove> moves) {
+    public Game(
+            UUID id,
+            UUID userId,
+            String event,
+            String site,
+            LocalDate date,
+            String round,
+            String whiteName,
+            String blackName,
+            GameResult result,
+            String pgn,
+            GameAnalysis analysis,
+            Set<GameMove> moves
+    ) {
         this.id = id;
         this.userId = userId;
         this.event = event;
@@ -34,7 +51,10 @@ public class Game {
         this.result = result;
         this.pgn = pgn;
         this.analysis = analysis;
-        this.moves = Objects.requireNonNullElseGet(moves, () -> new TreeSet<>(Comparator.comparing(GameMove::getPlyIndex)));
+        this.moves = Objects.requireNonNullElseGet(
+                moves,
+                () -> new TreeSet<>(Comparator.comparing(GameMove::getPlyIndex))
+        );
     }
 
     public UUID getId() {

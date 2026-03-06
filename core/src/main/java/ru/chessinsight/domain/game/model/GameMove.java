@@ -15,7 +15,16 @@ public class GameMove {
 
     public GameMove() {}
 
-    public GameMove(UUID id, int plyIndex, String san, String uci, String positionFEN, String commentBefore, String commentAfter, GameMoveAnalysis analysis) {
+    public GameMove(
+            UUID id,
+            int plyIndex,
+            String san,
+            String uci,
+            String positionFEN,
+            String commentBefore,
+            String commentAfter,
+            GameMoveAnalysis analysis
+    ) {
         this.id = id;
         this.plyIndex = plyIndex;
         this.san = san;

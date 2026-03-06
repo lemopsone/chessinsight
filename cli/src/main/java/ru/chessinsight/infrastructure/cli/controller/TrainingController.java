@@ -73,18 +73,8 @@ public class TrainingController implements CommandController {
 
         UUID scenarioId = UUID.fromString(args[1]);
         String moveUci = args[2];
-        Integer cursor = null;
-        boolean demo = false;
-
-        if (args.length >= 4 && !args[3].startsWith("--")) {
-            cursor = Integer.parseInt(args[3]);
-        }
-        for (int i = 4; i < args.length; i++) {
-            if ("--demo".equals(args[i])) {
-                demo = true;
-                break;
-            }
-        }
+        Integer cursor = parseCursorArg(args);
+        boolean demo = hasDemoFlag(args);
 
         ApiTrainingScenario scenario = api.getTrainingScenario(scenarioId);
         System.out.printf("Scenario %s | game=%s%n", scenario.getId(), scenario.getGameId());
@@ -92,22 +82,37 @@ public class TrainingController implements CommandController {
         System.out.println("Pv: " + scenario.getPvSan());
 
         ApiTrainingMoveResponse resp = api.submitTrainingMove(scenarioId, cursor, moveUci, demo);
+        printStepResponse(resp);
+    }
 
-        System.out.printf("Status: %s%n", resp.getStatus());
-        if (resp.getMessage() != null) {
-            System.out.println("Message: " + resp.getMessage());
+    private static Integer parseCursorArg(String[] args) {
+        if (args.length >= 4 && !args[3].startsWith("--")) {
+            return Integer.parseInt(args[3]);
         }
-        if (resp.getAcceptedMoveUci() != null) {
-            System.out.println("Accepted move: " + resp.getAcceptedMoveUci());
+        return null;
+    }
+
+    private static boolean hasDemoFlag(String[] args) {
+        for (int i = 4; i < args.length; i++) {
+            if ("--demo".equals(args[i])) {
+                return true;
+            }
         }
-        if (resp.getOpponentMoveUci() != null) {
-            System.out.println("Opponent move: " + resp.getOpponentMoveUci());
-        }
-        if (resp.getNextCursor() != null) {
-            System.out.println("Next cursor: " + resp.getNextCursor());
-        }
-        if (resp.getHintPvSan() != null) {
-            System.out.println("Hint: " + resp.getHintPvSan());
+        return false;
+    }
+
+    private static void printStepResponse(ApiTrainingMoveResponse response) {
+        System.out.printf("Status: %s%n", response.getStatus());
+        printIfPresent("Message", response.getMessage());
+        printIfPresent("Accepted move", response.getAcceptedMoveUci());
+        printIfPresent("Opponent move", response.getOpponentMoveUci());
+        printIfPresent("Next cursor", response.getNextCursor());
+        printIfPresent("Hint", response.getHintPvSan());
+    }
+
+    private static void printIfPresent(String label, Object value) {
+        if (value != null) {
+            System.out.println(label + ": " + value);
         }
     }
 }

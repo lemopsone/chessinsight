@@ -132,6 +132,34 @@ mvn -pl core -Dtest=ru.chessinsight.domain.common.pagination.PageTest -X test | 
 mvn -pl jpa -DskipITs=true -DskipUnitTests=true -X verify | rg -n "maven-failsafe-plugin|forkCount|reuseForks"
 ```
 
+## 11.1. Static analysis и pre-commit
+
+В проект добавлены quality-проверки:
+
+- `Cyclomatic Complexity` (PMD, лимит метода: `<= 10`)
+- `Cyclomatic Complexity` (PMD-отчет по всем методам: `reports/static-analysis/cyclomatic-report.md`)
+- `Halstead Complexity` (отчет по всем методам: `reports/static-analysis/halstead-report.md`)
+- `Code style` (Checkstyle)
+- компиляция как базовая type-проверка Java-кода
+
+Локальный запуск quality gate:
+
+```bash
+./ci/run-quality-gate.sh
+```
+
+Установка pre-commit hook:
+
+```bash
+./ci/install-git-hooks.sh
+```
+
+После установки перед каждым `git commit` запускается `./ci/run-quality-gate.sh`.
+Коммит блокируется при падении проверок (стандартный обходной путь Git: `--no-verify`).
+
+В CI workflow `tests.yml` quality-проверка запускается отдельным job `Quality Gate` перед тестовыми job.
+Отчеты `reports/static-analysis/*.md` копируются в `ci-reports/static-analysis` и публикуются как артефакт job `Quality Gate`.
+
 # 12. Локальный запуск integration/e2e на одном инстансе PostgreSQL
 
 Для CI/CD сохранен режим Testcontainers по умолчанию.

@@ -16,7 +16,17 @@ public class TrainingScenario {
 
     public TrainingScenario() {}
 
-    public TrainingScenario(UUID id, UUID userId, UUID gameId, String positionFEN, String pvSan, String pvUci, String prompt, boolean completed, OffsetDateTime completedAt) {
+    public TrainingScenario(
+            UUID id,
+            UUID userId,
+            UUID gameId,
+            String positionFEN,
+            String pvSan,
+            String pvUci,
+            String prompt,
+            boolean completed,
+            OffsetDateTime completedAt
+    ) {
         this.id = id;
         this.userId = userId;
         this.gameId = gameId;

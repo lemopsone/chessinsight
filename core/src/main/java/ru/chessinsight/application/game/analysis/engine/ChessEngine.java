@@ -1,6 +1,10 @@
 package ru.chessinsight.application.game.analysis.engine;
 
-import ru.chessinsight.application.game.analysis.engine.dto.*;
+import ru.chessinsight.application.game.analysis.engine.dto.EngineAnalysisRequest;
+import ru.chessinsight.application.game.analysis.engine.dto.EngineInfo;
+import ru.chessinsight.application.game.analysis.engine.dto.EngineMoveAnalysis;
+import ru.chessinsight.application.game.analysis.engine.dto.EngineMoveRequest;
+import ru.chessinsight.application.game.analysis.engine.dto.EnginePositionAnalysis;
 import ru.chessinsight.application.game.analysis.engine.exception.EngineException;
 
 /**

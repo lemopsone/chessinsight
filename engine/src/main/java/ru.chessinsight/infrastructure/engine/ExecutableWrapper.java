@@ -2,7 +2,12 @@ package ru.chessinsight.infrastructure.engine;
 
 import ru.chessinsight.application.game.analysis.engine.exception.EngineException;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.Closeable;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;

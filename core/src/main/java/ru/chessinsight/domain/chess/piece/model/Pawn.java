@@ -14,56 +14,78 @@ public class Pawn extends Piece {
 
     @Override
     public List<Move> pseudoLegalMoves(Chessboard b, BoardCoordinates at) {
-        int startingRank, promotionRank, dir;
         List<Move> moves = new ArrayList<>();
-        if (color == Color.WHITE) {
-            startingRank = 1;
-            promotionRank = 7;
-            dir = 1;
-        } else {
-            startingRank = 6;
-            promotionRank = 0;
-            dir = -1;
-        }
-
-        var forwardCoordinates = new BoardCoordinates(at.rank() + dir, at.file());
-        if (b.at(forwardCoordinates) == null) {
-            if (forwardCoordinates.rank() == promotionRank) {
-                addPromotions(moves, at, forwardCoordinates, false);
-            } else {
-                moves.add(Move.move(at, forwardCoordinates, false));
-            }
-            if (at.rank() == startingRank) {
-                var doublePushCoordinates = new BoardCoordinates(at.rank() + dir * 2, at.file());
-                if (b.at(doublePushCoordinates) == null) {
-                    moves.add(Move.doublePush(at, doublePushCoordinates));
-                }
-            }
-        }
-
-        for (int df : new int[]{-1, 1}) {
-            var captureSquare = new BoardCoordinates(at.rank() + dir, at.file() + df);
-            if (!b.inside(captureSquare)) continue;
-            Piece target = b.at(captureSquare);
-            if (target != null && target.color != this.color) {
-                if (at.rank() == promotionRank) {
-                    addPromotions(moves, at, captureSquare, true);
-                } else {
-                    moves.add(Move.move(at, captureSquare,true));
-                }
-            }
-        }
-
-        /* Взятие на проходе */
-        BoardCoordinates enPassantSquare = b.getEnPassantSquare();
-        if (enPassantSquare != null) {
-            if (Math.abs(enPassantSquare.file() - at.file()) == 1
-            && enPassantSquare.rank() == at.rank() + dir) {
-                moves.add(Move.enPassant(at, enPassantSquare));
-            }
-        }
-
+        int direction = color == Color.WHITE ? 1 : -1;
+        int startingRank = color == Color.WHITE ? 1 : 6;
+        int promotionRank = color == Color.WHITE ? 7 : 0;
+        addForwardMoves(b, at, moves, direction, startingRank, promotionRank);
+        addCaptureMoves(b, at, moves, direction, promotionRank);
+        addEnPassantMove(b, at, moves, direction);
         return moves;
+    }
+
+    private void addForwardMoves(
+            Chessboard board,
+            BoardCoordinates at,
+            List<Move> moves,
+            int direction,
+            int startingRank,
+            int promotionRank
+    ) {
+        var forwardCoordinates = new BoardCoordinates(at.rank() + direction, at.file());
+        if (board.at(forwardCoordinates) != null) {
+            return;
+        }
+        if (forwardCoordinates.rank() == promotionRank) {
+            addPromotions(moves, at, forwardCoordinates, false);
+        } else {
+            moves.add(Move.move(at, forwardCoordinates, false));
+        }
+        if (at.rank() == startingRank) {
+            addDoublePushIfAvailable(board, at, moves, direction);
+        }
+    }
+
+    private static void addDoublePushIfAvailable(Chessboard board, BoardCoordinates at, List<Move> moves, int direction) {
+        var doublePushCoordinates = new BoardCoordinates(at.rank() + direction * 2, at.file());
+        if (board.at(doublePushCoordinates) == null) {
+            moves.add(Move.doublePush(at, doublePushCoordinates));
+        }
+    }
+
+    private void addCaptureMoves(
+            Chessboard board,
+            BoardCoordinates at,
+            List<Move> moves,
+            int direction,
+            int promotionRank
+    ) {
+        for (int fileDelta : new int[]{-1, 1}) {
+            var captureSquare = new BoardCoordinates(at.rank() + direction, at.file() + fileDelta);
+            if (!board.inside(captureSquare)) {
+                continue;
+            }
+            Piece target = board.at(captureSquare);
+            if (target == null || target.color == this.color) {
+                continue;
+            }
+            if (at.rank() == promotionRank) {
+                addPromotions(moves, at, captureSquare, true);
+            } else {
+                moves.add(Move.move(at, captureSquare, true));
+            }
+        }
+    }
+
+    private static void addEnPassantMove(Chessboard board, BoardCoordinates at, List<Move> moves, int direction) {
+        BoardCoordinates enPassantSquare = board.getEnPassantSquare();
+        if (enPassantSquare == null) {
+            return;
+        }
+        if (Math.abs(enPassantSquare.file() - at.file()) == 1
+                && enPassantSquare.rank() == at.rank() + direction) {
+            moves.add(Move.enPassant(at, enPassantSquare));
+        }
     }
 
     private void addPromotions(List<Move> moves, BoardCoordinates from, BoardCoordinates to, boolean isCapture) {

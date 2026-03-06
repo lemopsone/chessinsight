@@ -10,7 +10,11 @@ import ru.chessinsight.domain.chess.piece.model.King;
 import ru.chessinsight.domain.chess.piece.model.Piece;
 import ru.chessinsight.domain.chess.piece.model.Rook;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class MoveValidator {
     private static final int KING_FILE = 4;
