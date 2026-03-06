@@ -20,7 +20,10 @@ public class PgTrainingScenarioRepository implements TrainingScenarioRepository 
     private final TrainingScenarioJpaRepository jpaRepository;
     private final EntityMapper<TrainingScenario, TrainingScenarioEntity> mapper;
 
-    public PgTrainingScenarioRepository(TrainingScenarioJpaRepository jpaRepository, EntityMapper<TrainingScenario, TrainingScenarioEntity> mapper) {
+    public PgTrainingScenarioRepository(
+            TrainingScenarioJpaRepository jpaRepository,
+            EntityMapper<TrainingScenario, TrainingScenarioEntity> mapper
+    ) {
         this.jpaRepository = jpaRepository;
         this.mapper = mapper;
     }

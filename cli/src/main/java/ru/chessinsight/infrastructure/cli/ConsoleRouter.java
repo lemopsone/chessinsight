@@ -3,7 +3,10 @@ package ru.chessinsight.infrastructure.cli;
 import org.springframework.stereotype.Component;
 import ru.chessinsight.infrastructure.cli.controller.CommandController;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Component
 public class ConsoleRouter {

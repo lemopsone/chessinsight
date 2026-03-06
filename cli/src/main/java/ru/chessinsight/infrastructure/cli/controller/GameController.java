@@ -86,18 +86,28 @@ public class GameController implements CommandController {
             payload = args[2];
         }
 
-        String fen = null;
-        String resultTag = null;
-        for (int i = 3; i < args.length; i++) {
-            if ("--fen".equals(args[i]) && i + 1 < args.length) {
-                fen = args[++i];
-            } else if ("--result".equals(args[i]) && i + 1 < args.length) {
-                resultTag = args[++i];
-            }
-        }
+        String fen = findImportOptionValue(args, "--fen");
+        String resultTag = findImportOptionValue(args, "--result");
 
         ApiGameSummary game = api.importGameFromPgn(payload, fen, resultTag);
         System.out.println("Imported game: " + game.getId());
+    }
+
+    private static String findImportOptionValue(String[] args, String optionName) {
+        int optionIndex = indexOfOption(args, optionName);
+        if (optionIndex < 0) {
+            return null;
+        }
+        return optionIndex + 1 < args.length ? args[optionIndex + 1] : null;
+    }
+
+    private static int indexOfOption(String[] args, String optionName) {
+        for (int i = 3; i < args.length; i++) {
+            if (optionName.equals(args[i])) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private static String readFileOrFail(String path) {

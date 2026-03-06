@@ -14,9 +14,14 @@ import ru.chessinsight.domain.game.model.GameResult;
 import ru.chessinsight.domain.game.notation.service.pgn.PgnService;
 import ru.chessinsight.domain.game.repository.GameRepository;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.TreeSet;
+import java.util.UUID;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 @Service
 public class ConcreteGameImportService implements GameImportService {
@@ -66,48 +71,15 @@ public class ConcreteGameImportService implements GameImportService {
 
     @Override
     public UUID importFromMoves(UUID ownerId, String format, String movesText, String startFen, String resultTag) {
-        Position pos;
-        if (startFen != null) {
-            pos = Position.fromFEN(startFen);
-        } else {
-            pos = Position.initial();
-        }
-        var moves = new TreeSet<>(Comparator.comparingInt(GameMove::getPlyIndex));
-        int ply = 1;
-        switch (format.toLowerCase()) {
-            case "uci":
-                for (String uci : tokenizeUci(movesText)) {
-                    var move = uciNotationService.uciToMove(uci, pos);
-                    String san = sanNotationService.moveToSan(move, pos);
-                    pos = MoveMaker.apply(pos, move);
-                    GameMove m = new GameMove();
-                    m.setPlyIndex(ply++);
-                    m.setUci(uci);
-                    m.setSan(simplifySan(san));
-                    moves.add(m);
-                }
-                break;
-            case "san":
-                for (String san : tokenizeSan(stripSanNoise(movesText))) {
-                    var move = sanNotationService.sanToMove(san, pos);
-                    String uci = uciNotationService.moveToUci(move);
-                    MoveMaker.apply(pos, move);
-                    GameMove m = new GameMove();
-                    m.setPlyIndex(ply++);
-                    m.setSan(simplifySan(san));
-                    m.setUci(uci);
-                    moves.add(m);
-                }
-                break;
-            default:
-                logger.warning("game.import.moves rejected format=" + format);
-                throw new ApplicationException("couldn't parse game format " + format);
-        }
+        Position startPosition = resolveStartPosition(startFen);
+        TreeSet<GameMove> moves = parseMovesByFormat(format, movesText, startPosition);
+
         var g = new Game();
         g.setMoves(moves);
         g.setResult(parseResult(resultTag));
         g.setUserId(ownerId);
         g = gameRepository.save(g);
+
         if (g != null) {
             logger.info("game.import.moves success userId=" + ownerId + " gameId=" + g.getId()
                     + " format=" + format + " moves=" + moves.size());
@@ -115,6 +87,60 @@ public class ConcreteGameImportService implements GameImportService {
             logger.error("game.import.moves failed userId=" + ownerId + " format=" + format);
         }
         return g != null ? g.getId() : null;
+    }
+
+    private Position resolveStartPosition(String startFen) {
+        if (startFen != null) {
+            return Position.fromFEN(startFen);
+        }
+        return Position.initial();
+    }
+
+    private TreeSet<GameMove> parseMovesByFormat(String format, String movesText, Position startPosition) {
+        return switch (format.toLowerCase()) {
+            case "uci" -> parseUciMoves(movesText, startPosition);
+            case "san" -> parseSanMoves(movesText, startPosition);
+            default -> throw unsupportedFormat(format);
+        };
+    }
+
+    private TreeSet<GameMove> parseUciMoves(String movesText, Position startPosition) {
+        Position position = startPosition;
+        TreeSet<GameMove> moves = new TreeSet<>(Comparator.comparingInt(GameMove::getPlyIndex));
+        int ply = 1;
+        for (String uci : tokenizeUci(movesText)) {
+            var move = uciNotationService.uciToMove(uci, position);
+            String san = sanNotationService.moveToSan(move, position);
+            position = MoveMaker.apply(position, move);
+            moves.add(toGameMove(ply++, simplifySan(san), uci));
+        }
+        return moves;
+    }
+
+    private TreeSet<GameMove> parseSanMoves(String movesText, Position startPosition) {
+        Position position = startPosition;
+        TreeSet<GameMove> moves = new TreeSet<>(Comparator.comparingInt(GameMove::getPlyIndex));
+        int ply = 1;
+        for (String san : tokenizeSan(stripSanNoise(movesText))) {
+            var move = sanNotationService.sanToMove(san, position);
+            String uci = uciNotationService.moveToUci(move);
+            position = MoveMaker.apply(position, move);
+            moves.add(toGameMove(ply++, simplifySan(san), uci));
+        }
+        return moves;
+    }
+
+    private ApplicationException unsupportedFormat(String format) {
+        logger.warning("game.import.moves rejected format=" + format);
+        return new ApplicationException("couldn't parse game format " + format);
+    }
+
+    private static GameMove toGameMove(int ply, String san, String uci) {
+        GameMove move = new GameMove();
+        move.setPlyIndex(ply);
+        move.setSan(san);
+        move.setUci(uci);
+        return move;
     }
 
     private static GameResult parseResult(String tag) {

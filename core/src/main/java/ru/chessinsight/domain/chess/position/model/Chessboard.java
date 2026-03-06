@@ -1,6 +1,13 @@
 package ru.chessinsight.domain.chess.position.model;
 
-import ru.chessinsight.domain.chess.piece.model.*;
+import ru.chessinsight.domain.chess.piece.model.Bishop;
+import ru.chessinsight.domain.chess.piece.model.Color;
+import ru.chessinsight.domain.chess.piece.model.King;
+import ru.chessinsight.domain.chess.piece.model.Knight;
+import ru.chessinsight.domain.chess.piece.model.Pawn;
+import ru.chessinsight.domain.chess.piece.model.Piece;
+import ru.chessinsight.domain.chess.piece.model.Queen;
+import ru.chessinsight.domain.chess.piece.model.Rook;
 import ru.chessinsight.domain.exception.BadFENCharException;
 import ru.chessinsight.domain.exception.KingNotFoundException;
 
@@ -61,30 +68,36 @@ public final class Chessboard {
         Map<BoardCoordinates, Piece> pieces = new HashMap<>();
         String[] rows = FEN.split("/");
         for (int rFen = 0; rFen < 8; rFen++) {
-            int rank = 7 - rFen;          // 8-я -> 7, 1-я -> 0
-            int file = 0;
-            for (char c : rows[rFen].toCharArray()) {
-                if (Character.isDigit(c)) {
-                    file += (c - '0');
-                } else {
-                    Color color = Character.isUpperCase(c) ? Color.WHITE : Color.BLACK;
-                    Piece piece = switch (Character.toLowerCase(c)) {
-                        case 'k' -> new King(color);
-                        case 'q' -> new Queen(color);
-                        case 'r' -> new Rook(color);
-                        case 'b' -> new Bishop(color);
-                        case 'n' -> new Knight(color);
-                        case 'p' -> new Pawn(color);
-                        default -> throw new BadFENCharException(c);
-                    };
-                    BoardCoordinates currentCoords = new BoardCoordinates(rank, file);
-                    pieces.put(currentCoords, piece);
-                    file++;
-                }
-            }
+            int rank = 7 - rFen; // 8-я -> 7, 1-я -> 0
+            fillRankFromFenRow(pieces, rows[rFen], rank);
         }
 
         return new Chessboard(pieces);
+    }
+
+    private static void fillRankFromFenRow(Map<BoardCoordinates, Piece> pieces, String row, int rank) {
+        int file = 0;
+        for (char symbol : row.toCharArray()) {
+            if (Character.isDigit(symbol)) {
+                file += (symbol - '0');
+                continue;
+            }
+            pieces.put(new BoardCoordinates(rank, file), pieceFromFenChar(symbol));
+            file++;
+        }
+    }
+
+    private static Piece pieceFromFenChar(char symbol) {
+        Color color = Character.isUpperCase(symbol) ? Color.WHITE : Color.BLACK;
+        return switch (Character.toLowerCase(symbol)) {
+            case 'k' -> new King(color);
+            case 'q' -> new Queen(color);
+            case 'r' -> new Rook(color);
+            case 'b' -> new Bishop(color);
+            case 'n' -> new Knight(color);
+            case 'p' -> new Pawn(color);
+            default -> throw new BadFENCharException(symbol);
+        };
     }
 
     public String toFENPlacement() {

@@ -24,101 +24,199 @@ public final class SanNotationService {
         if (san.equals("O-O-O") || san.equals("0-0-0")) {
             return Move.castleQueenSide(pos.sideToMove());
         }
-        String s = san;
-        boolean checkOrMate = s.endsWith("+") || s.endsWith("#");
-        if (checkOrMate) s = s.substring(0, s.length()-1);
-        String promo;
-        int eq = s.indexOf('=');
-        if (eq>=0 && eq==s.length()-2){
-            promo = s.substring(s.length()-1);
-            s = s.substring(0, s.length()-2);
-        } else {
-            promo = null;
-        }
-        boolean capture = s.contains("x");
-        s = s.replace("x","");
-
-        char first = s.charAt(0);
-        String pieceLetter = "PNBRQK".indexOf(first)>=0 ? String.valueOf(first) : "P";
-        String dest = s.substring(s.length()-2);
-        String disamb = s.substring(pieceLetter.equals("P")?0:1, s.length()-2);
-
-        BoardCoordinates to = BoardCoordinates.fromString(dest);
+        ParsedSan parsed = parseSan(san);
         MoveValidator validator = new MoveValidator();
-        List<Move> legals = validator.sideLegalMoves(pos, pos.sideToMove());
-        List<Move> cands = legals.stream().filter(m -> {
-            if (m.to()==null) return false;
-            if (m.to().file()!=to.file() || m.to().rank()!=to.rank()) return false;
-            String p = pieceOf(pos, m.from());
-            if (!letterOf(p).equals(pieceLetter)) return false;
-            if (promo != null){
-                if (m.promotionTo()==null) return false;
-                if (!m.promotionTo().name().substring(0,1).equals(promo)) return false;
-            }
-            if (capture && !m.isCapture()) return false;
-            return capture || !m.isCapture();
-        }).collect(Collectors.toList());
-
-        if (!disamb.isEmpty()){
-            if (disamb.length()==2){
-                int f = FILES.indexOf(disamb.charAt(0));
-                int r = Character.getNumericValue(disamb.charAt(1))-1;
-                cands = cands.stream().filter(m -> m.from().file()==f && m.from().rank()==r).collect(Collectors.toList());
-            } else if (Character.isLetter(disamb.charAt(0))) {
-                int f = FILES.indexOf(disamb.charAt(0));
-                cands = cands.stream().filter(m -> m.from().file()==f).collect(Collectors.toList());
-            } else {
-                int r = Character.getNumericValue(disamb.charAt(0))-1;
-                cands = cands.stream().filter(m -> m.from().rank()==r).collect(Collectors.toList());
-            }
-        }
-        if (cands.size()==1) return cands.getFirst();
-        throw new InvalidSANException("no legal moves match SAN " + san);
+        List<Move> legalMoves = validator.sideLegalMoves(pos, pos.sideToMove());
+        List<Move> candidates = legalMoves.stream()
+                .filter(move -> matchesSanMove(pos, move, parsed))
+                .collect(Collectors.toList());
+        List<Move> disambiguated = applyDisambiguation(candidates, parsed.disambiguation());
+        return singleCandidateOrThrow(san, disambiguated);
     }
 
     public String moveToSan(Move move, Position before){
         if (move.kind()== MoveKind.CASTLE_KING_SIDE) return "O-O";
         if (move.kind()== MoveKind.CASTLE_QUEEN_SIDE) return "O-O-O";
         StringBuilder sb = new StringBuilder();
-        String piece = letterOf(pieceOf(before, move.from()));
-        boolean isPawn = piece.equals("P");
-        if (!isPawn) sb.append(piece);
-        MoveValidator validator = new MoveValidator();
-        List<Move> rivals = validator.sideLegalMoves(before, before.sideToMove()).stream()
-                .filter(m -> !m.equals(move) && m.to() != null && move.to() != null
-                        && m.promotionTo() == move.promotionTo()
-                        && m.to().file() == move.to().file() && m.to().rank() == move.to().rank()
-                        && letterOf(pieceOf(before, m.from())).equals(piece))
-                .toList();
-        if (!rivals.isEmpty()){
-            boolean fileUnique = rivals.stream().allMatch(m -> m.from().file()!=move.from().file());
-            boolean rankUnique = rivals.stream().allMatch(m -> m.from().rank()!=move.from().rank());
-            if (!isPawn) {
-                if (fileUnique) sb.append(fileChar(move.from().file()));
-                else if (rankUnique) sb.append(move.from().rank() + 1);
-                else sb.append(fileChar(move.from().file())).append(move.from().rank() + 1);
-            }
-        }
-        boolean capture = move.isCapture();
-        if (isPawn && capture){
-            sb.append(fileChar(move.from().file()));
-        }
-        if (capture) sb.append('x');
-        if (move.from() == null || move.to() == null)
-            throw new InvalidStateException("invalid Move state (to/from is null)");
-        sb.append(fileChar(move.to().file())).append(move.to().rank()+1);
-        if (move.promotionTo()!=null){
-            sb.append('=').append(move.promotionTo().name().charAt(0));
-        }
-        Position after = MoveMaker.apply(before, move);
-        MoveValidator v = new MoveValidator();
-        var legalMovesAfter = v.sideLegalMoves(after, after.sideToMove());
-        boolean inCheck = v.isKingInCheck(after, after.sideToMove());
-        boolean checkmate = inCheck && legalMovesAfter.isEmpty();
-        if (checkmate) sb.append('#');
-        else if (inCheck) sb.append('+');
+        String pieceLetter = letterOf(pieceOf(before, move.from()));
+        boolean isPawn = pieceLetter.equals("P");
+        appendPiecePrefix(sb, pieceLetter, isPawn);
+        appendDisambiguation(sb, before, move, pieceLetter, isPawn);
+        appendCaptureAndDestination(sb, move, isPawn);
+        appendPromotion(sb, move);
+        appendCheckSuffix(sb, before, move);
         return sb.toString();
     }
+
+    private static ParsedSan parseSan(String san) {
+        String stripped = stripCheckSuffix(san);
+        PromotionPart promotionPart = splitPromotion(stripped);
+        String noCapture = promotionPart.base().replace("x", "");
+        String pieceLetter = detectPieceLetter(noCapture);
+        String destination = noCapture.substring(noCapture.length() - 2);
+        String disambiguation = noCapture.substring(pieceLetter.equals("P") ? 0 : 1, noCapture.length() - 2);
+        boolean capture = promotionPart.base().contains("x");
+        return new ParsedSan(pieceLetter, BoardCoordinates.fromString(destination), disambiguation, capture, promotionPart.promotion());
+    }
+
+    private static String stripCheckSuffix(String san) {
+        if (san.endsWith("+") || san.endsWith("#")) {
+            return san.substring(0, san.length() - 1);
+        }
+        return san;
+    }
+
+    private static PromotionPart splitPromotion(String san) {
+        int eq = san.indexOf('=');
+        if (eq >= 0 && eq == san.length() - 2) {
+            return new PromotionPart(san.substring(0, san.length() - 2), san.substring(san.length() - 1));
+        }
+        return new PromotionPart(san, null);
+    }
+
+    private static String detectPieceLetter(String sanWithoutCapture) {
+        char first = sanWithoutCapture.charAt(0);
+        return "PNBRQK".indexOf(first) >= 0 ? String.valueOf(first) : "P";
+    }
+
+    private static boolean matchesSanMove(Position pos, Move move, ParsedSan parsed) {
+        if (move.from() == null || move.to() == null) {
+            return false;
+        }
+        if (!sameSquare(move.to(), parsed.destination())) {
+            return false;
+        }
+        if (!letterOf(pieceOf(pos, move.from())).equals(parsed.pieceLetter())) {
+            return false;
+        }
+        if (!matchesPromotion(move, parsed.promotion())) {
+            return false;
+        }
+        return parsed.capture() == move.isCapture();
+    }
+
+    private static boolean sameSquare(BoardCoordinates left, BoardCoordinates right) {
+        return left.file() == right.file() && left.rank() == right.rank();
+    }
+
+    private static boolean matchesPromotion(Move move, String promotion) {
+        if (promotion == null) {
+            return move.promotionTo() == null;
+        }
+        if (move.promotionTo() == null) {
+            return false;
+        }
+        return move.promotionTo().name().startsWith(promotion);
+    }
+
+    private static List<Move> applyDisambiguation(List<Move> candidates, String disambiguation) {
+        if (disambiguation.isEmpty()) {
+            return candidates;
+        }
+        if (disambiguation.length() == 2) {
+            int file = FILES.indexOf(disambiguation.charAt(0));
+            int rank = Character.getNumericValue(disambiguation.charAt(1)) - 1;
+            return candidates.stream()
+                    .filter(move -> move.from() != null && move.from().file() == file && move.from().rank() == rank)
+                    .collect(Collectors.toList());
+        }
+        char marker = disambiguation.charAt(0);
+        if (Character.isLetter(marker)) {
+            int file = FILES.indexOf(marker);
+            return candidates.stream()
+                    .filter(move -> move.from() != null && move.from().file() == file)
+                    .collect(Collectors.toList());
+        }
+        int rank = Character.getNumericValue(marker) - 1;
+        return candidates.stream()
+                .filter(move -> move.from() != null && move.from().rank() == rank)
+                .collect(Collectors.toList());
+    }
+
+    private static Move singleCandidateOrThrow(String san, List<Move> candidates) {
+        if (candidates.size() == 1) {
+            return candidates.getFirst();
+        }
+        throw new InvalidSANException("no legal moves match SAN " + san);
+    }
+
+    private static void appendPiecePrefix(StringBuilder sb, String pieceLetter, boolean isPawn) {
+        if (!isPawn) {
+            sb.append(pieceLetter);
+        }
+    }
+
+    private static void appendDisambiguation(StringBuilder sb, Position before, Move move, String pieceLetter, boolean isPawn) {
+        if (isPawn) {
+            return;
+        }
+        List<Move> rivals = findRivals(before, move, pieceLetter);
+        if (rivals.isEmpty()) {
+            return;
+        }
+        boolean fileUnique = rivals.stream().allMatch(rival -> rival.from() == null || rival.from().file() != move.from().file());
+        boolean rankUnique = rivals.stream().allMatch(rival -> rival.from() == null || rival.from().rank() != move.from().rank());
+        if (fileUnique) {
+            sb.append(fileChar(move.from().file()));
+            return;
+        }
+        if (rankUnique) {
+            sb.append(move.from().rank() + 1);
+            return;
+        }
+        sb.append(fileChar(move.from().file())).append(move.from().rank() + 1);
+    }
+
+    private static List<Move> findRivals(Position before, Move move, String pieceLetter) {
+        MoveValidator validator = new MoveValidator();
+        return validator.sideLegalMoves(before, before.sideToMove()).stream()
+                .filter(candidate -> !candidate.equals(move))
+                .filter(candidate -> candidate.to() != null && move.to() != null && sameSquare(candidate.to(), move.to()))
+                .filter(candidate -> candidate.promotionTo() == move.promotionTo())
+                .filter(candidate -> letterOf(pieceOf(before, candidate.from())).equals(pieceLetter))
+                .toList();
+    }
+
+    private static void appendCaptureAndDestination(StringBuilder sb, Move move, boolean isPawn) {
+        if (move.from() == null || move.to() == null) {
+            throw new InvalidStateException("invalid Move state (to/from is null)");
+        }
+        if (isPawn && move.isCapture()) {
+            sb.append(fileChar(move.from().file()));
+        }
+        if (move.isCapture()) {
+            sb.append('x');
+        }
+        sb.append(fileChar(move.to().file())).append(move.to().rank() + 1);
+    }
+
+    private static void appendPromotion(StringBuilder sb, Move move) {
+        if (move.promotionTo() != null) {
+            sb.append('=').append(move.promotionTo().name().charAt(0));
+        }
+    }
+
+    private static void appendCheckSuffix(StringBuilder sb, Position before, Move move) {
+        Position after = MoveMaker.apply(before, move);
+        MoveValidator validator = new MoveValidator();
+        boolean inCheck = validator.isKingInCheck(after, after.sideToMove());
+        boolean checkmate = inCheck && validator.sideLegalMoves(after, after.sideToMove()).isEmpty();
+        if (checkmate) {
+            sb.append('#');
+        } else if (inCheck) {
+            sb.append('+');
+        }
+    }
+
+    private record PromotionPart(String base, String promotion) {}
+
+    private record ParsedSan(
+            String pieceLetter,
+            BoardCoordinates destination,
+            String disambiguation,
+            boolean capture,
+            String promotion
+    ) {}
 
     public static String letterOf(String piece){
         if (piece==null) return "";

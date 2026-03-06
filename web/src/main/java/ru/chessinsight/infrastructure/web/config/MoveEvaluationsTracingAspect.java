@@ -25,7 +25,10 @@ public class MoveEvaluationsTracingAspect {
             value = "execution(* ru.chessinsight.infrastructure.web.controller.AnalysisController.analyzeMove(..)) && args(body)",
             argNames = "joinPoint,body"
     )
-    public Object traceAnalyzeMoveController(ProceedingJoinPoint joinPoint, ru.chessinsight.infrastructure.web.dto.MoveDTO body) throws Throwable {
+    public Object traceAnalyzeMoveController(
+            ProceedingJoinPoint joinPoint,
+            ru.chessinsight.infrastructure.web.dto.MoveDTO body
+    ) throws Throwable {
         Span span = tracer.nextSpan().name("move.analysis.http.handler");
         if (body != null) {
             span.tag("http.move.num", String.valueOf(body.getMoveNum()));
@@ -61,7 +64,8 @@ public class MoveEvaluationsTracingAspect {
     }
 
     @Around(
-            value = "execution(* ru.chessinsight.application.game.analysis.service.impl.DefaultAnalysisService.analyzeMove(..)) && args(move)",
+            value = "execution(* ru.chessinsight.application.game.analysis.service.impl."
+                    + "DefaultAnalysisService.analyzeMove(..)) && args(move)",
             argNames = "joinPoint,move"
     )
     public Object traceAnalyzeMoveService(ProceedingJoinPoint joinPoint, MoveDTO move) throws Throwable {
@@ -86,7 +90,8 @@ public class MoveEvaluationsTracingAspect {
         try (Tracer.SpanInScope ignored = tracer.withSpan(span.start())) {
             runChildSpan("move.analysis.engine.request.prepare", child -> {
                 if (request != null) {
-                    child.tag("engine.request.fen.length", String.valueOf(request.positionFEN() == null ? 0 : request.positionFEN().length()));
+                    int fenLength = request.positionFEN() == null ? 0 : request.positionFEN().length();
+                    child.tag("engine.request.fen.length", String.valueOf(fenLength));
                     child.tag("engine.request.played.uci", String.valueOf(request.playedMoveUci()));
                 }
             });

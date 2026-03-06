@@ -46,13 +46,10 @@ public class ConcreteGameService implements GameService {
     @Override
     public Page<Game> findUserGames(UUID userId, GameSearchCriteria criteria, PageParams params) {
         List<Game> filtered = gameRepository.findAllByUserId(userId).stream()
-                .filter(game -> criteria == null || criteria.result() == null || criteria.result() == game.getResult())
-                .filter(game -> criteria == null || criteria.dateFrom() == null
-                        || (game.getDate() != null && !game.getDate().isBefore(criteria.dateFrom())))
-                .filter(game -> criteria == null || criteria.dateTo() == null
-                        || (game.getDate() != null && !game.getDate().isAfter(criteria.dateTo())))
-                .filter(game -> criteria == null || criteria.analyzed() == null
-                        || (criteria.analyzed() ? game.getAnalysis() != null : game.getAnalysis() == null))
+                .filter(game -> matchesResult(criteria, game))
+                .filter(game -> matchesDateFrom(criteria, game))
+                .filter(game -> matchesDateTo(criteria, game))
+                .filter(game -> matchesAnalyzed(criteria, game))
                 .toList();
 
         int page = params != null ? params.page() : 0;
@@ -63,6 +60,29 @@ public class ConcreteGameService implements GameService {
 
         List<Game> content = filtered.subList(fromIndex, toIndex);
         return new Page<>(content, page, size, total);
+    }
+
+    private static boolean matchesResult(GameSearchCriteria criteria, Game game) {
+        return criteria == null || criteria.result() == null || criteria.result() == game.getResult();
+    }
+
+    private static boolean matchesDateFrom(GameSearchCriteria criteria, Game game) {
+        return criteria == null
+                || criteria.dateFrom() == null
+                || (game.getDate() != null && !game.getDate().isBefore(criteria.dateFrom()));
+    }
+
+    private static boolean matchesDateTo(GameSearchCriteria criteria, Game game) {
+        return criteria == null
+                || criteria.dateTo() == null
+                || (game.getDate() != null && !game.getDate().isAfter(criteria.dateTo()));
+    }
+
+    private static boolean matchesAnalyzed(GameSearchCriteria criteria, Game game) {
+        if (criteria == null || criteria.analyzed() == null) {
+            return true;
+        }
+        return criteria.analyzed() ? game.getAnalysis() != null : game.getAnalysis() == null;
     }
 
     @Override

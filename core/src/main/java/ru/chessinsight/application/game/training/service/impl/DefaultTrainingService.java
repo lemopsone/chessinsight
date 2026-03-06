@@ -23,7 +23,15 @@ import ru.chessinsight.domain.game.training.model.TrainingScenario;
 import ru.chessinsight.domain.game.training.repository.TrainingScenarioRepository;
 
 import java.time.OffsetDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -142,109 +150,160 @@ public class DefaultTrainingService implements TrainingService {
     @Override
     @Transactional
     public TrainingMoveResponse submitMove(UUID userId, TrainingMoveRequest cmd) {
-        Optional<TrainingScenario> scenario = scenarioRepository.findOneById(cmd.scenarioId());
-        if (scenario.isEmpty()) {
-            logger.warning("training.submit.not_found scenarioId=" + cmd.scenarioId());
-            throw new ScenarioNotFoundException("Scenario not found");
+        TrainingScenario scenario = requireScenario(cmd.scenarioId());
+        validateAccess(userId, cmd, scenario);
+        if (scenario.isCompleted()) {
+            logger.info("training.submit.completed scenarioId=" + cmd.scenarioId());
+            return completedAlreadyResponse(cmd.cursor());
         }
-        TrainingScenario s = scenario.get();
 
-        if (s.getUserId() != null && !cmd.isDemo() && !s.getUserId().equals(userId)) {
+        List<String> pv = splitMovesUci(scenario.getPvUci());
+        if (pv.isEmpty()) {
+            logger.warning("training.submit.missing_pv scenarioId=" + cmd.scenarioId());
+            return missingPvResponse(cmd.cursor());
+        }
+
+        int cursor = sanitizeCursor(cmd.cursor(), pv.size());
+        if (cursor >= pv.size()) {
+            return completeScenario(scenario, cmd.scenarioId(), pv.size());
+        }
+
+        Position position = positionAtCursor(scenario.getPositionFEN(), pv, cursor);
+        String userMoveUci = cmd.moveUCI();
+        String expectedMove = pv.get(cursor);
+        if (expectedMove.equals(userMoveUci)) {
+            return processCorrectMove(scenario, cmd, pv, cursor, userMoveUci);
+        }
+        return processIncorrectMove(cmd, position, userMoveUci);
+    }
+
+    private TrainingScenario requireScenario(UUID scenarioId) {
+        Optional<TrainingScenario> scenario = scenarioRepository.findOneById(scenarioId);
+        if (scenario.isPresent()) {
+            return scenario.get();
+        }
+        logger.warning("training.submit.not_found scenarioId=" + scenarioId);
+        throw new ScenarioNotFoundException("Scenario not found");
+    }
+
+    private void validateAccess(UUID userId, TrainingMoveRequest cmd, TrainingScenario scenario) {
+        if (scenario.getUserId() != null && !cmd.isDemo() && !scenario.getUserId().equals(userId)) {
             logger.warning("training.submit.forbidden scenarioId=" + cmd.scenarioId()
                     + " userId=" + userId);
             throw new ScenarioAccessException("Scenario does not belong to user");
         }
+    }
 
-        if (s.isCompleted()) {
+    private static TrainingMoveResponse completedAlreadyResponse(int cursor) {
+        return new TrainingMoveResponse(
+                TrainingMoveResponse.Status.COMPLETED,
+                "Scenario already completed.",
+                null,
+                null,
+                cursor,
+                true,
+                null,
+                null
+        );
+    }
+
+    private static TrainingMoveResponse missingPvResponse(int cursor) {
+        return new TrainingMoveResponse(
+                TrainingMoveResponse.Status.INCORRECT,
+                "Scenario has no PV configured.",
+                null,
+                null,
+                cursor,
+                false,
+                null,
+                null
+        );
+    }
+
+    private TrainingMoveResponse completeScenario(TrainingScenario scenario, UUID scenarioId, int cursor) {
+        scenario.setCompleted(true);
+        scenario.setCompletedAt(OffsetDateTime.now());
+        scenarioRepository.save(scenario);
+        logger.info("training.submit.completed scenarioId=" + scenarioId);
+        return new TrainingMoveResponse(
+                TrainingMoveResponse.Status.COMPLETED,
+                "Scenario completed.",
+                null,
+                null,
+                cursor,
+                true,
+                null,
+                null
+        );
+    }
+
+    private Position positionAtCursor(String initialFen, List<String> pv, int cursor) {
+        Position position = Position.fromFEN(initialFen);
+        for (String move : pv.subList(0, cursor)) {
+            position = MoveMaker.apply(position, uciNotationService.uciToMove(move, position));
+        }
+        return position;
+    }
+
+    private TrainingMoveResponse processCorrectMove(
+            TrainingScenario scenario,
+            TrainingMoveRequest cmd,
+            List<String> pv,
+            int cursor,
+            String userMoveUci
+    ) {
+        int nextCursor = cursor + 1;
+        String opponentMove = null;
+        if (nextCursor < pv.size()) {
+            opponentMove = pv.get(nextCursor);
+            nextCursor += 1;
+        }
+
+        boolean nowCompleted = nextCursor >= pv.size();
+        if (nowCompleted && !cmd.isDemo()) {
+            scenario.setCompleted(true);
+            scenario.setCompletedAt(OffsetDateTime.now());
+            scenarioRepository.save(scenario);
             logger.info("training.submit.completed scenarioId=" + cmd.scenarioId());
-            return new TrainingMoveResponse(
-                    TrainingMoveResponse.Status.COMPLETED,
-                    "Scenario already completed.",
-                    null, null, cmd.cursor(), true, null, null
-            );
         }
+        return new TrainingMoveResponse(
+                nowCompleted ? TrainingMoveResponse.Status.COMPLETED : TrainingMoveResponse.Status.CONTINUE,
+                nowCompleted
+                        ? "Correct! You’ve reached the end of the line."
+                        : "Correct! Opponent replies — your move again.",
+                userMoveUci,
+                opponentMove,
+                nextCursor,
+                nowCompleted && !cmd.isDemo(),
+                null,
+                null
+        );
+    }
 
-        final List<String> pv = splitMovesUci(s.getPvUci());
-        if (pv.isEmpty()) {
-            logger.warning("training.submit.missing_pv scenarioId=" + cmd.scenarioId());
-            return new TrainingMoveResponse(TrainingMoveResponse.Status.INCORRECT,
-                    "Scenario has no PV configured.",
-                    null, null, cmd.cursor(), false, null, null);
-        }
-
-        int cursor = sanitizeCursor(cmd.cursor(), pv.size());
-
-        if (cursor >= pv.size()) {
-            s.setCompleted(true);
-            s.setCompletedAt(OffsetDateTime.now());
-            scenarioRepository.save(s);
-            logger.info("training.submit.completed scenarioId=" + cmd.scenarioId());
-            return new TrainingMoveResponse(
-                    TrainingMoveResponse.Status.COMPLETED,
-                    "Scenario completed.",
-                    null, null, pv.size(), true, null, null
-            );
-        }
-
-        var pos = Position.fromFEN(s.getPositionFEN());
-        var prevMoves = pv.subList(0, cursor);
-        for (var move : prevMoves) {
-            pos = MoveMaker.apply(pos, uciNotationService.uciToMove(move, pos));
-        }
-
-        final String userMoveUci = cmd.moveUCI();
-
-        final String expectedMove = pv.get(cursor);
-        if (expectedMove.equals(userMoveUci)) {
-            cursor += 1;
-
-            String opponent = null;
-            if (cursor < pv.size()) {
-                opponent = pv.get(cursor);
-                cursor += 1;
-            }
-
-            boolean nowCompleted = (cursor >= pv.size());
-            if (nowCompleted && !cmd.isDemo()) {
-                s.setCompleted(true);
-                s.setCompletedAt(OffsetDateTime.now());
-                scenarioRepository.save(s);
-                logger.info("training.submit.completed scenarioId=" + cmd.scenarioId());
-            }
-
-            return new TrainingMoveResponse(
-                    nowCompleted ? TrainingMoveResponse.Status.COMPLETED : TrainingMoveResponse.Status.CONTINUE,
-                    nowCompleted
-                            ? "Correct! You’ve reached the end of the line."
-                            : "Correct! Opponent replies — your move again.",
-                    userMoveUci,
-                    opponent,
-                    cursor,
-                    nowCompleted && !cmd.isDemo(),
-                    null, null
-            );
-        }
-        final String fenAfterMistake = MoveMaker.apply(pos, uciNotationService.uciToMove(userMoveUci, pos)).toFEN();
+    private TrainingMoveResponse processIncorrectMove(TrainingMoveRequest cmd, Position position, String userMoveUci) {
+        String fenAfterMistake = MoveMaker.apply(position, uciNotationService.uciToMove(userMoveUci, position)).toFEN();
         EnginePositionAnalysis refutation = engine.analyzePosition(
                 new EngineAnalysisRequest(
                         fenAfterMistake,
                         DEFAULT_DEPTH,
-                        null, null,
+                        null,
+                        null,
                         1,
                         DEFAULT_PV_LIMIT
                 )
         );
 
-        List<String> hintSan = (refutation != null && refutation.pvSan() != null) ? refutation.pvSan() : List.of();
-        List<String> hintUci = (refutation != null && refutation.pvUci() != null) ? refutation.pvUci() : List.of();
-
+        List<String> hintSan = refutation != null && refutation.pvSan() != null ? refutation.pvSan() : List.of();
+        List<String> hintUci = refutation != null && refutation.pvUci() != null ? refutation.pvUci() : List.of();
         return new TrainingMoveResponse(
                 TrainingMoveResponse.Status.INCORRECT,
                 "That move doesn’t match the training line. Here’s a sample refutation:",
-                null, null,
+                null,
+                null,
                 cmd.cursor(),
                 false,
-                hintSan, hintUci
+                hintSan,
+                hintUci
         );
     }
 

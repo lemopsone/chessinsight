@@ -1,7 +1,9 @@
 package ru.chessinsight.domain.user.model;
 
 import java.io.Serializable;
-import java.util.*;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
 
 public class User implements Serializable {
     private UUID id;
