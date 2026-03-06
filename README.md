@@ -201,6 +201,10 @@ TEST_STOCKFISH_PROVIDER=real ./ci/run-stage.sh e2e
 
 `docs/analysis-load-testing.md`
 
+Сравнение влияния трассировки и расширенного логирования на CPU/RAM описано в:
+
+`docs/observability-tracing-benchmark.md`
+
 Быстрый запуск:
 
 ```bash
@@ -212,3 +216,5 @@ STEADY_TRIALS=1 STEADY_REQUESTS=20 RECOVERY_TRIALS=1 ./ci/run-analysis-perf.sh
 ```bash
 ./ci/run-analysis-perf.sh
 ```
+
+Отчеты сохраняются в `reports/perf/observability` (`summary.md`, `results.json`, `results.csv`).
