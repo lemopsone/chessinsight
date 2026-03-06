@@ -30,12 +30,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: mkdir -p ci-reports/observability
-      - run: ./ci/run-analysis-perf.sh --output-dir ci-reports/observability --ui-mode off
-        env:
-          RPS: ${{ inputs.rps }}
-          DURATION: ${{ inputs.duration }}
-          WARMUP_DURATION: ${{ inputs.warmup_duration }}
-          WARMUP_RPS: ${{ inputs.warmup_rps }}
+      - run: >
+          ./ci/run-analysis-perf.sh
+          --output-dir ci-reports/observability
+          --ui-mode off
+          --rps "${{ inputs.rps }}"
+          --duration "${{ inputs.duration }}"
+          --warmup-duration "${{ inputs.warmup_duration }}"
+          --warmup-rps "${{ inputs.warmup_rps }}"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
