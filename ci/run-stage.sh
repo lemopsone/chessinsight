@@ -63,6 +63,10 @@ fi
 
 set +e
 case "$STAGE" in
+  quality)
+    ./ci/run-quality-gate.sh
+    STATUS=$?
+    ;;
   unit)
     mvn "${MAVEN_ARGS[@]}" -pl core,jpa,web -am test -Dallure.test.stage=unit
     STATUS=$?
@@ -91,5 +95,10 @@ for dir in core/target/allure-results jpa/target/allure-results web/target/allur
     cp -a "$dir/." "$OUT_DIR"
   fi
 done
+
+if [ "$STAGE" = "quality" ] && [ -d "reports/static-analysis" ]; then
+  mkdir -p "$RESULTS_DIR/static-analysis"
+  cp -a reports/static-analysis/. "$RESULTS_DIR/static-analysis"
+fi
 
 exit $STATUS
